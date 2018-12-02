@@ -1,9 +1,6 @@
 import re
 from datetime import datetime
-from datetime import timedelta
 from . import const
-from colorama import init, Fore, Style
-init(autoreset=True)
 
 def get_org_files(rcfile):
     """Get a list of org files from a 'vimrc' file."""
@@ -26,6 +23,7 @@ def get_todo_states(rcfile):
     data = vimrc.read()
     todostates = patt_todostate.search(data).group()
 
+    todostates = re.sub(r'\([a-z]\)', '', todostates)
     todostates = [x.strip(', ') for x in slugify(todostates.split('[')[1]).split('|')]
     todostates = [re.compile(r'' + x.replace(', ', r'|') + r'') for x in todostates]
     todostates = {
@@ -38,21 +36,20 @@ def get_todo_states(rcfile):
 #-------------------------------------------------------------------------------
 # Date-related functions
 #-------------------------------------------------------------------------------
-def compare_dates(duedate, duedate_dt, nondate):
-    """Compare the given due date with today's date.
+def days_until_due(duedate):
+    """Calculate the number of days left until a task's due date."""
 
-    Returns the input string with colors/styles applied based on the due date.
-    """
-    if duedate_dt < const.today:
-        str_ = const.styles['late'] + duedate + nondate
-    elif duedate_dt == const.today:
-        str_ = const.styles['date'] + duedate + Fore.YELLOW + Style.BRIGHT + nondate
-    elif const.today < duedate_dt <= const.today + timedelta(days=7):
-        str_ = const.styles['date'] + duedate + Fore.GREEN + Style.BRIGHT + nondate
-    else:
-        str_ = const.styles['date'] + duedate + const.styles['normal'] + nondate
+    dt = datetime.strptime(slugify(duedate), '%Y-%m-%d %a')
+    timediff = dt - const.today
+    return timediff.days
 
-    return str_
+def day_names(str_):
+    """Convert a date string (w/ ANSI colors) to include full day name, padded."""
+    match = const.datepattern.search(str_).group()
+    repl = datetime.strptime(match, '<%Y-%m-%d %a>').strftime('%A %d %b %Y')
+    repl = repl.split()[0] + ' '*(10 - len(repl.split()[0])) + ' '.join(repl.split()[1:4])
+    tmp = re.sub(match, repl, str_)
+    return tmp
 
 #-------------------------------------------------------------------------------
 # String formatting functions
@@ -65,7 +62,7 @@ def slugify(str_):
 
     return str_
 
-def format_str(str_):
+def format_inline(str_):
     """Format a string if there is any markup present."""
     if const.urlpattern.search(str_):
         text = slugify(str_.split('[[')[1].split('][')[1].split(']]')[0])
@@ -92,13 +89,16 @@ def get_parse_string(todostates):
     todos = [x.pattern.split('|') for x in todostates.values()]
     todos = [item for sublist in todos for item in sublist]
     todos = [r'\s' + x + r'\s' for x in todos]
-    todostate_string = r'(?:(' + r'|'.join(todos) + r')|)'
+    todostate_string = r'(?P<todostate>(' + r'|'.join(todos) + r')|)'
+#TODO below line is older; above works w/ "re.finditer"
+#    todostate_string = r'(?:(' + r'|'.join(todos) + r')|)'
     headerText_string = r'(?P<header>.*?)'
     numTasks_string = r'(?P<num_tasks>\s*\[\d+/\d+\]\s*|)'
     date_string = r'(?P<date>[\<\[]\d+-\d+-\d+\s[a-zA-Z]+[\>\]]|)'
     tag_string = r'(?P<tag>[ \t]*:[\w:]*:)*'
+    endline = r'(?P<endline>\n|$)'
     line_string = level_string + todostate_string + headerText_string + \
-            numTasks_string + date_string + tag_string + r'(\n)'
+            numTasks_string + date_string + tag_string + endline#r'(?P<endline>\n)'
     pattern_line = re.compile(line_string)
 
     return pattern_line
@@ -110,13 +110,46 @@ def print_delim(n=30):
     """Print a line of blue '#' symbols."""
     print('\t\t' + const.styles['url'] + n*'#')
 
-def print_color_key():
-    print
-    print_delim(50)
-    print(const.styles['date'] + '\t\tCOLOR KEY' + '\n')
-    print('Red background:    ' + const.styles['late'] + 'Overdue!')
-    print('Yellow background: ' + Fore.YELLOW + Style.BRIGHT + 'Due today!')
-    print('Green background:  ' + Fore.GREEN + Style.BRIGHT + 'Due in the next 7 days!')
-    print('Black background:  ' + 'Due later')
-    print_delim(50)
-    print
+def print_header(**kwargs):
+    if kwargs['colors']:
+        print_delim(40)
+        if kwargs['agenda']:
+            print('\t\t\t    ' + const.styles['checkbox'] + 'WEEK AGENDA' + \
+                    const.styles['normal'])
+        elif kwargs['tags']:
+            print('\t\t    ' + const.styles['checkbox'] + 'Headlines with ' + \
+                    const.styles['tag'] + 'TAGS ' + const.styles['checkbox'] + 'match: ' + \
+                    const.styles['late'] + '%s' % kwargs['tags'])
+        elif kwargs['categories']:
+            print('\t\t ' + const.styles['checkbox'] + 'Headlines with ' + \
+                    const.styles['tag'] + 'CATEGORY ' + const.styles['checkbox'] + 'match: ' + \
+                    const.styles['late'] + '%s' % kwargs['categories'])
+
+        # All dates and tags
+        else:
+            if kwargs['states']:
+                last = const.styles[kwargs['states'].lower()] + kwargs['states'].upper()
+            else:
+                last = const.styles['late'] + 'ALL'
+            print '\t\t' + const.styles['checkbox'] + 'Global list of TODO items of type: ' + last
+
+        print_delim(40)
+
+def print_all(todolist, **kwargs):
+    """Print the todo list lines, padding the columns."""
+    tag_lens = []; state_lens = []
+    for i,x in enumerate(todolist):
+        state_lens.append(len(const.ansicolors.sub('', x[1])))
+        tag_lens.append(len(const.ansicolors.sub('', x[5])))
+
+    longest_state = max(state_lens)
+    if kwargs['agenda']:
+        maxdatelen = 22     # Date string includes full day name
+    else:
+        maxdatelen = 18
+    longest_tag = max(maxdatelen, max(tag_lens))
+    print_header(**kwargs)
+    for i,x in enumerate(todolist):
+        x[1] = x[1] + ' '*(longest_state + 2 - state_lens[i])
+        x[5] = x[5] + ' '*(longest_tag + 1 - tag_lens[i])
+        print re.sub('<|>', '', x[4]) + '  ' + x[5] + ' '.join(x[1:4]) + x[6],
