@@ -47,7 +47,6 @@ def run():
     opts = vars(options)
 
     # Run
-#    orgpyvim.orgFromFile(**opts)
     orgpyvim.orgTreeFromFile(**opts)
 
 if __name__ == '__main__':

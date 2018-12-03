@@ -4,7 +4,7 @@ from io import open
 
 setup(
     name = 'orgpyvim',
-    version = '0.1.0',
+    version = '0.2.0',
     description = 'Python package to get important information from org-mode files',
     license = '',#TODO
     packages = ['orgpyvim'],
@@ -18,5 +18,5 @@ setup(
     ],
     keywords = ['orgmode'],
     url = 'https://github.com/cwatson/orgpyvim',
-    install_requires = ['setuptools', 'argparse', 'colorama', 'datetime', 'os', 're', 'sys']
+    install_requires = ['setuptools', 'argparse', 'colorama', 'copy', 'datetime', 'os', 're', 'sys', '__future__']
 )

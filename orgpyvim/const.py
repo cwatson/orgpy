@@ -15,21 +15,22 @@ for i in range(7):
 styles = {
     'todo': Fore.WHITE + Back.RED,
     'started': Fore.WHITE + Back.BLUE,
+    'waiting': Fore.WHITE + Back.BLUE,
     'normal': Fore.WHITE + Back.BLACK + Style.NORMAL,
     'bright': Fore.WHITE + Back.BLACK + Style.BRIGHT,
-    'checkbox': Fore.MAGENTA + Style.BRIGHT,
-    'date': Fore.BLUE + Style.BRIGHT,
-    'today': Fore.GREEN + Style.BRIGHT,
+    'checkbox': Fore.MAGENTA + Back.BLACK + Style.BRIGHT,
+    'date': Fore.BLUE + Back.BLACK + Style.BRIGHT,
+    'today': Fore.GREEN + Back.BLACK + Style.BRIGHT,
     'code': Fore.GREEN + Style.BRIGHT,
     'tag': Fore.YELLOW + Style.BRIGHT,
-    'late': Fore.RED + Style.BRIGHT ,
+    'late': Fore.RED + Back.BLACK + Style.BRIGHT ,
     'url': Fore.BLUE + Style.BRIGHT,
-    'file': Fore.CYAN + Style.BRIGHT
+    'verb': Fore.CYAN + Style.BRIGHT
 }
 
 # Regex patterns
 #---------------------------------------
-patterns = {
+inline = {
     'bold': {
         'pattern': re.compile('\*[,\w\s]+\*'),
         'delim': '*',
@@ -41,10 +42,13 @@ patterns = {
     'verb': {
         'pattern': re.compile('~[\._\w\s]+~'),
         'delim': '~',
-        'cols': styles['file']}
+        'cols': styles['verb']}
 }
-urlpattern = re.compile('\[\[.*\]\]')
-datepattern = re.compile('<[0-9].*>')
-catpattern = re.compile(r'#\+CATEGORY:.*')
-titlepattern = re.compile(r'\n#\+TITLE:.*')
-ansicolors = re.compile(r'(\x1b\[[0-9]+[mM])+')
+regex = {
+    'orgfile': re.compile(r'org_agenda_files\s=.*?\[.*?\]', re.DOTALL),
+    'todostates': re.compile(r'org_todo_keywords\s=.*?\[.*?\]', re.DOTALL),
+    'url': re.compile('\[\[.*\]\]'),
+    'date': re.compile('<[0-9].*>'),
+    'properties': re.compile(r'#\+([A-Z]*): (.*)\n'),
+    'ansicolors': re.compile(r'(\x1b\[[0-9]+[mM])+')
+}

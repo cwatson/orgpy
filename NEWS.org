@@ -1,3 +1,15 @@
+* v0.2.0 -- 2018-12-03
+** =tree.py=
+*** New function =OrgNode.add_tag()= allows for *tag inheritance*
+    - Currently only works for a "level-1" heading; i.e., a line with 1 leading asterisk
+*** Add docstrings to classes and functions
+*** For *categories*, if there are multiple, put them in a =list=
+*** Simplify subsetting by using one function
+    - Change behavior by the =type= argument
+** Change the name of some variables in =const=
+** Change the pattern name for task text from =header= to =text=
+** Move the =print_all_dict= function to =utils= and rename it
+   - Replaced =print_all=
 * v0.1.0 -- 2018-12-02
 ** Overhauled the implementation to use "trees", to allow for tag/category inheritance
 ** Added a CLI option =-g | --categories= to filter by category

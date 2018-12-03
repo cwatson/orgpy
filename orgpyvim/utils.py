@@ -4,12 +4,11 @@ from . import const
 
 def get_org_files(rcfile):
     """Get a list of org files from a 'vimrc' file."""
-    patt_files = re.compile(r'org_agenda_files\s=.*?\[.*?\]', re.DOTALL)
     vimrc = open(rcfile, 'r')
     data = vimrc.read()
-    orgfiles = patt_files.search(data).group()
+    orgfiles = const.regex['orgfile'].search(data).group()
     orgfiles = orgfiles.split('[')[1].split(', ')
-    orgfiles = [slugify(x) for _,x in enumerate(orgfiles)]
+    orgfiles = [slugify(x) for x in orgfiles]
 
     return orgfiles
 
@@ -18,10 +17,9 @@ def get_todo_states(rcfile):
 
     Returns a dictionary for both the 'in progress' and 'completed' states.
     """
-    patt_todostate = re.compile(r'org_todo_keywords\s=.*?\[.*?\]', re.DOTALL)
     vimrc = open(rcfile, 'r')
     data = vimrc.read()
-    todostates = patt_todostate.search(data).group()
+    todostates = const.regex['todostates'].search(data).group()
 
     todostates = re.sub(r'\([a-z]\)', '', todostates)
     todostates = [x.strip(', ') for x in slugify(todostates.split('[')[1]).split('|')]
@@ -38,14 +36,13 @@ def get_todo_states(rcfile):
 #-------------------------------------------------------------------------------
 def days_until_due(duedate):
     """Calculate the number of days left until a task's due date."""
-
     dt = datetime.strptime(slugify(duedate), '%Y-%m-%d %a')
     timediff = dt - const.today
     return timediff.days
 
 def day_names(str_):
     """Convert a date string (w/ ANSI colors) to include full day name, padded."""
-    match = const.datepattern.search(str_).group()
+    match = const.regex['date'].search(str_).group()
     repl = datetime.strptime(match, '<%Y-%m-%d %a>').strftime('%A %d %b %Y')
     repl = repl.split()[0] + ' '*(10 - len(repl.split()[0])) + ' '.join(repl.split()[1:4])
     tmp = re.sub(match, repl, str_)
@@ -57,24 +54,21 @@ def day_names(str_):
 def slugify(str_):
     """Remove single quotes, brackets, and newline characters from a string."""
     bad_chars = ["'", '[', ']', '\n', '<', '>' , '\\']
-    for ch in bad_chars:
-        str_ = str_.replace(ch, '')
+    for ch in bad_chars: str_ = str_.replace(ch, '')
 
     return str_
 
 def format_inline(str_):
     """Format a string if there is any markup present."""
-    if const.urlpattern.search(str_):
+    if const.regex['url'].search(str_):
         text = slugify(str_.split('[[')[1].split('][')[1].split(']]')[0])
-        str_ = const.urlpattern.sub(const.styles['url'] + text + const.styles['normal'], str_)
+        str_ = const.regex['url'].sub(const.styles['url'] + text + const.styles['normal'], str_)
 
-    for key, val in const.patterns.iteritems():
+    for key, val in const.inline.iteritems():
         if val['pattern'].search(str_):
             matches = val['pattern'].findall(str_)
-            repls = [val['cols'] + x.replace(val['delim'], "") + const.styles['normal']
-                        for _,x in enumerate(matches)]
-#            text = val['pattern'].search(str_).group().replace(val['delim'], "")
-#            str_ = val['pattern'].sub(val['cols'] + text + const.styles['normal'], str_)
+            repls = [val['cols'] + x.replace(val['delim'], '') + const.styles['normal']
+                        for x in matches]
             for x,y in zip(matches, repls):
                 str_ = str_.replace(x, y)
 
@@ -92,7 +86,7 @@ def get_parse_string(todostates):
     todostate_string = r'(?P<todostate>(' + r'|'.join(todos) + r')|)'
 #TODO below line is older; above works w/ "re.finditer"
 #    todostate_string = r'(?:(' + r'|'.join(todos) + r')|)'
-    headerText_string = r'(?P<header>.*?)'
+    headerText_string = r'(?P<text>.*?)'
     numTasks_string = r'(?P<num_tasks>\s*\[\d+/\d+\]\s*|)'
     date_string = r'(?P<date>[\<\[]\d+-\d+-\d+\s[a-zA-Z]+[\>\]]|)'
     tag_string = r'(?P<tag>[ \t]*:[\w:]*:)*'
@@ -128,19 +122,22 @@ def print_header(**kwargs):
         # All dates and tags
         else:
             if kwargs['states']:
-                last = const.styles[kwargs['states'].lower()] + kwargs['states'].upper()
+                state = const.styles[kwargs['states'].lower()] + kwargs['states'].upper()
             else:
-                last = const.styles['late'] + 'ALL'
-            print '\t\t' + const.styles['checkbox'] + 'Global list of TODO items of type: ' + last
+                state = const.styles['late'] + 'ALL'
+            print '\t\t' + const.styles['checkbox'] + 'Global list of ' + \
+                const.styles['todo'] + 'TODO' + const.styles['checkbox'] + ' items of type: ' + state
 
         print_delim(40)
 
-def print_all(todolist, **kwargs):
+def print_all(list_, **kwargs):
     """Print the todo list lines, padding the columns."""
-    tag_lens = []; state_lens = []
-    for i,x in enumerate(todolist):
-        state_lens.append(len(const.ansicolors.sub('', x[1])))
-        tag_lens.append(len(const.ansicolors.sub('', x[5])))
+    tag_lens = []; state_lens = []; text_lens = []; check_lens = []
+    for i,d in enumerate(list_):
+        state_lens.append(len(const.regex['ansicolors'].sub('', d['todostate'])))
+        tag_lens.append(len(const.regex['ansicolors'].sub('', d['category'])))
+        text_lens.append(len(const.regex['ansicolors'].sub('', d['text'])))
+        check_lens.append(len(const.regex['ansicolors'].sub('', d['num_tasks'])))
 
     longest_state = max(state_lens)
     if kwargs['agenda']:
@@ -148,8 +145,13 @@ def print_all(todolist, **kwargs):
     else:
         maxdatelen = 18
     longest_tag = max(maxdatelen, max(tag_lens))
+    longest_text = max(text_lens)
+    longest_check = max(check_lens)
     print_header(**kwargs)
-    for i,x in enumerate(todolist):
-        x[1] = x[1] + ' '*(longest_state + 2 - state_lens[i])
-        x[5] = x[5] + ' '*(longest_tag + 1 - tag_lens[i])
-        print re.sub('<|>', '', x[4]) + '  ' + x[5] + ' '.join(x[1:4]) + x[6],
+    for i,d in enumerate(list_):
+        d['todostate'] = d['todostate'] + ' '*(longest_state + 2 - state_lens[i])
+        d['category'] = d['category'] + ' '*(longest_tag + 1 - tag_lens[i])
+        d['num_tasks'] = d['num_tasks'] + ' '*(longest_text + 1 - text_lens[i]) + \
+            ' '*(longest_check + 1 - check_lens[i])
+        print re.sub('<|>', '', d['date']) + '  ' + d['category'] + \
+            d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag']
