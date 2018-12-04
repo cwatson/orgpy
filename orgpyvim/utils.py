@@ -58,42 +58,49 @@ def slugify(str_):
 
     return str_
 
-def format_inline(str_):
+def format_inline(str_, reset='normal'):
     """Format a string if there is any markup present."""
     if const.regex['url'].search(str_):
         text = slugify(str_.split('[[')[1].split('][')[1].split(']]')[0])
-        str_ = const.regex['url'].sub(const.styles['url'] + text + const.styles['normal'], str_)
+        str_ = const.regex['url'].sub(const.styles['url'] + text + const.styles[reset], str_)
 
     for key, val in const.inline.iteritems():
         if val['pattern'].search(str_):
             matches = val['pattern'].findall(str_)
-            repls = [val['cols'] + x.replace(val['delim'], '') + const.styles['normal']
+            repls = [val['cols'] + x.replace(val['delim'], '') + const.styles[reset]
                         for x in matches]
             for x,y in zip(matches, repls):
                 str_ = str_.replace(x, y)
 
     return str_
 
+#-------------------------------------------------------------------------------
+# Main function concerned with parsing each task line/groups of lines
+#-------------------------------------------------------------------------------
 def get_parse_string(todostates):
     """Calculate the correct regex pattern for parsing an entire org line.
 
     Depends on the set of TODO 'states'/keywords present in the files.
     """
-    level_string = r'(?P<level>\*{1,9}|\s{1,9}-)'
+    # TODO The following gets *all* content between 2 consecutive headings/sets of asterisks
+    # Should use this, in some way, to e.g. look for the date on line 2
+    #all_content = re.findall(r'(?P<all>\*{1,9}.*?)(?:\n\*)', org.data, re.DOTALL)
+    # TODO
+
+    level_string = r'(?P<level>\*{1,9}|\h{1,9}-)'
     todos = [x.pattern.split('|') for x in todostates.values()]
     todos = [item for sublist in todos for item in sublist]
     todos = [r'\s' + x + r'\s' for x in todos]
     todostate_string = r'(?P<todostate>(' + r'|'.join(todos) + r')|)'
-#TODO below line is older; above works w/ "re.finditer"
-#    todostate_string = r'(?:(' + r'|'.join(todos) + r')|)'
     headerText_string = r'(?P<text>.*?)'
     numTasks_string = r'(?P<num_tasks>\s*\[\d+/\d+\]\s*|)'
-    date_string = r'(?P<date>[\<\[]\d+-\d+-\d+\s[a-zA-Z]+[\>\]]|)'
+#    date1 = r'(?P<date_one>[\<\[]\d{4}-\d{2}-\d{2}\s[a-zA-Z]{3}[\>\]]|)'
+    date1 = r'(?P<date_one>' + const.date_str + '|)'
     tag_string = r'(?P<tag>[ \t]*:[\w:]*:)*'
-    endline = r'(?P<endline>\n|$)'
+    date2 = r'(?P<date_two>\n\s+[A-Z]+:\s' + const.date_str + r'(?:\n|$)|(?:\n|$))'
     line_string = level_string + todostate_string + headerText_string + \
-            numTasks_string + date_string + tag_string + endline#r'(?P<endline>\n)'
-    pattern_line = re.compile(line_string)
+            numTasks_string + date1 + tag_string + date2
+    pattern_line = re.compile(line_string, re.MULTILINE)
 
     return pattern_line
 
@@ -153,5 +160,5 @@ def print_all(list_, **kwargs):
         d['category'] = d['category'] + ' '*(longest_tag + 1 - tag_lens[i])
         d['num_tasks'] = d['num_tasks'] + ' '*(longest_text + 1 - text_lens[i]) + \
             ' '*(longest_check + 1 - check_lens[i])
-        print re.sub('<|>', '', d['date']) + '  ' + d['category'] + \
-            d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag']
+        print re.sub('<|>', '', d['date_one']) + '  ' + d['category'] + \
+            d['date_two'] + '  ' + d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag']

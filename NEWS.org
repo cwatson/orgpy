@@ -1,3 +1,6 @@
+* v0.3.0 -- 2018-12-04
+** Added functionality to work with ~DEADLINE~ and ~SCHEDULED~ date types
+** Updated =formate_inline= to "reset" the style to what it was before the function was called
 * v0.2.0 -- 2018-12-03
 ** =tree.py=
 *** New function =OrgNode.add_tag()= allows for *tag inheritance*

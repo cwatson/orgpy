@@ -115,7 +115,9 @@ class OrgNode:
         self.data = data
         self.properties = properties
         self.update_properties()
-        self.level = len(self.data[0]) - len(self.data[0].lstrip('*'))
+        levels = [len(x) - len(x.lstrip('*')) for x in self.data.splitlines()]
+        self.max_level = max(levels)
+        self.level = levels[0]
 
         # Parse the lines in this node, and get active tasks
         self.parse()
@@ -173,21 +175,25 @@ class OrgNode:
             - todostate (TODO, STARTED, DONE, etc.)
             - text (the task's main text)
             - num_tasks (for checkboxes)
-            - date
+            - date_one (date string on the same line as the content)
+            - date_two ('SCHEDULED'|'DEADLINE' plus date string if on 2nd line)
             - tag
-            - endline (just a newline character)
         """
         regex_line = self.properties['regex_line']
         matches = [x.groupdict() for x in regex_line.finditer(self.data)]
         for i,d in enumerate(matches):
             if not d['tag']: d['tag'] = ''
+            if const.regex['date'].search(d['date_two']):
+                if re.search('SCHEDULED|DEADLINE', d['date_two']):
+                    d['date_one'] = d['date_two'].strip().split(': ')[1]
+                    d['date_two'] = d['date_two'].strip().split(': ')[0].title()
         self.parsed = matches
 
     def get_active_todos(self):
         """Return only the active TODO tasks."""
         date_lines = []
         for _,d in enumerate(self.parsed):
-            if d['date'] != '':
+            if d['date_one'] != '':
                 if self.properties['todostates']['in_progress'].search(d['todostate']):
                     date_lines.append(d)
         self.active = date_lines
@@ -208,7 +214,7 @@ class OrgNode:
     def get_days_to_duedate(self):
         """Update the active TODO dicts with the days left until the due date."""
         for i,d in enumerate(self.active):
-            d['days'] = utils.days_until_due(d['date'])
+            d['days'] = utils.days_until_due(d['date_one'])
 
     #---------------------------------------------------------------------------
     # Method for subsetting the active tasks based on CLI options
@@ -236,6 +242,7 @@ class OrgNode:
 
     #-------------------------------------------------------
     # Apply styles to each active task
+    #TODO move function to utils; have it work on a single line? Still can loop over the list here TODO
     #-------------------------------------------------------
     def colorize(self):
         """Colorize dates, tags, TODO states, and inline text."""
@@ -252,22 +259,34 @@ class OrgNode:
                 col[i].update(todostate=const.styles['started'] + d['todostate'].strip())
             col[i]['todostate'] = col[i].get('todostate') + const.styles['normal']
 
+            # Scheduled vs Deadline
+            if d['date_two'] == 'Scheduled':
+                col[i].update(date_two=const.styles['scheduled'] + d['date_two'] + ':' + const.styles['normal'])
+                col[i].update(text=const.styles['scheduled'] + utils.format_inline(d['text'], 'scheduled') + const.styles['normal'])
+            elif d['date_two'] == 'Deadline':
+                col[i].update(date_two=const.styles['deadline'] + ' ' + d['date_two'] + ':' + const.styles['normal'])
+            else:   # Just a newline char
+                col[i].update(date_two=' '*10)
+
             # Apply diff style depending on due date
             d['tag'] = d['tag'].strip()
             if d['days'] > 0:
                 col[i].update(num_tasks=const.styles['checkbox'] + d['num_tasks'] + const.styles['normal'])
-                col[i].update(date=const.styles['date'] + d['date'] + const.styles['normal'] + '\n')
+                col[i].update(date_one=const.styles['date'] + d['date_one'] + const.styles['normal'] + '\n')
                 col[i].update(tag=const.styles['tag'] + d['tag'] + const.styles['normal'])
                 col[i].update(category=const.styles['tag'] + d['category'] + const.styles['normal'])
-                col[i].update(text=utils.format_inline(d['text']) + const.styles['normal'])
+                if re.search('Deadline', d['date_two']):
+                    col[i].update(text=utils.format_inline(d['text']) + const.styles['normal'])
             elif d['days'] < 0:
-                col[i].update(date=const.styles['late'] + d['date'] + '\n')
+                col[i].update(date_one=const.styles['late'] + d['date_one'] + '\n')
                 col[i].update(category=const.styles['late'] + d['category'])
-                col[i].update(text=const.styles['late'] + d['text'])
+                if re.search('Deadline', d['date_two']):
+                    col[i].update(text=const.styles['late'] + d['text'])
             elif d['days'] == 0:
-                col[i].update(date=const.styles['today'] + d['date'] + '\n')
+                col[i].update(date_one=const.styles['today'] + d['date_one'] + '\n')
                 col[i].update(category=const.styles['today'] + d['category'])
-                col[i].update(text=const.styles['today'] + d['text'])
+                if re.search('Deadline', d['date_two']):
+                    col[i].update(text=const.styles['today'] + d['text'])
 
         self.colored = col
 
@@ -291,25 +310,25 @@ def orgTreeFromFile(**kwargs):
     # Add dates for the next week even if there are no tasks
     if kwargs['agenda']:
         for d in const.dates_agenda:
-            if not any(re.search(d, item) for item in [x['date'] for x in todolist]):
+            if not any(re.search(d, item) for item in [x['date_one'] for x in todolist]):
                 blank_dict = {
-                    'date': const.styles['bright'] + d, 'endline': '\n',
-                    'category': '', 'text': '', 'level': '',
+                    'date_one': const.styles['bright'] + d,
+                    'date_two': '', 'category': '', 'text': '', 'level': '',
                     'num_tasks': '', 'tag': '', 'todostate': ''}
                 todolist.append(blank_dict)
 
-    todolist = sorted(todolist, key=lambda d: const.regex['ansicolors'].sub('', d['date']))
+    todolist = sorted(todolist, key=lambda d: const.regex['ansicolors'].sub('', d['date_one']))
 
     if kwargs['agenda']:
         for i,d in enumerate(todolist):
-            todolist[i]['date'] = utils.day_names(d['date'])
+            todolist[i]['date_one'] = utils.day_names(d['date_one'])
 
     # Remove repeating dates
     repeats = []
     for i,d in enumerate(todolist):
-        if i > 0 and todolist[i]['date'] == todolist[i-1]['date']:
+        if i > 0 and todolist[i]['date_one'] == todolist[i-1]['date_one']:
             repeats.append(i)
-    for i in repeats: todolist[i]['date'] = ''
+    for i in repeats: todolist[i]['date_one'] = ''
 
     # Print
     if not todolist:

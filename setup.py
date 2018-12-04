@@ -4,7 +4,7 @@ from io import open
 
 setup(
     name = 'orgpyvim',
-    version = '0.2.0',
+    version = '0.3.0',
     description = 'Python package to get important information from org-mode files',
     license = '',#TODO
     packages = ['orgpyvim'],
