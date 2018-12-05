@@ -1,6 +1,7 @@
 * v0.3.0 -- 2018-12-04
 ** Added functionality to work with ~DEADLINE~ and ~SCHEDULED~ date types
 ** Updated =formate_inline= to "reset" the style to what it was before the function was called
+** Update =colorize= to use the style with the actual name (lowercase) of the current TODO keyword
 * v0.2.0 -- 2018-12-03
 ** =tree.py=
 *** New function =OrgNode.add_tag()= allows for *tag inheritance*

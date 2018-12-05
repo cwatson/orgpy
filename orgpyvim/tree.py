@@ -256,7 +256,8 @@ class OrgNode:
             if re.search('TODO', d['todostate']):
                 col[i].update(todostate=const.styles['todo'] + d['todostate'].strip())
             else:
-                col[i].update(todostate=const.styles['started'] + d['todostate'].strip())
+                state = const.regex['ansicolors'].sub('', d['todostate']).strip().lower()
+                col[i].update(todostate=const.styles[state] + d['todostate'].strip())
             col[i]['todostate'] = col[i].get('todostate') + const.styles['normal']
 
             # Scheduled vs Deadline
