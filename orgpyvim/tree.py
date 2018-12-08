@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 import re, os, copy
-from . import const
-from . import utils
+from . import const, utils
 
 __all__ = ['OrgTree', 'orgTreeFromFile']
 #===============================================================================
@@ -133,6 +132,11 @@ class OrgNode:
 
             self.add_category()
 
+        # If 'category' is a list, combine them
+        for i,d in enumerate(self.active):
+            if isinstance(d['category'], list):
+                self.active[i].update(category=': '.join(d['category']))
+
         # Filter active tasks by agenda, category, or 'todo' state
         self.get_days_to_duedate()
         for p in ['agenda', 'states', 'tags', 'categories']:
@@ -222,7 +226,7 @@ class OrgNode:
     def subset_by(self, type):
         todos = []
         conds = {
-            'agenda': "d['days'] < 7",
+            'agenda': "d['days'] < " + str(self.properties['cli']['num_days']),
             'states': "re.search(self.properties['cli']['states'], d['todostate'], re.IGNORECASE)",
             'tags': "re.search(self.properties['cli']['tags'], d['tag'], re.IGNORECASE)"
         }
@@ -240,56 +244,12 @@ class OrgNode:
 
         self.active = todos
 
-    #-------------------------------------------------------
     # Apply styles to each active task
-    #TODO move function to utils; have it work on a single line? Still can loop over the list here TODO
-    #-------------------------------------------------------
     def colorize(self):
         """Colorize dates, tags, TODO states, and inline text."""
-        col = copy.deepcopy(self.active)
-        for i,d in enumerate(col):
-            # If 'category' is a list, combine them
-            if isinstance(d['category'], list):
-                col[i].update(category=': '.join(d['category']))
-
-            # Different styles for different todo states
-            if re.search('TODO', d['todostate']):
-                col[i].update(todostate=const.styles['todo'] + d['todostate'].strip())
-            else:
-                state = const.regex['ansicolors'].sub('', d['todostate']).strip().lower()
-                col[i].update(todostate=const.styles[state] + d['todostate'].strip())
-            col[i]['todostate'] = col[i].get('todostate') + const.styles['normal']
-
-            # Scheduled vs Deadline
-            if d['date_two'] == 'Scheduled':
-                col[i].update(date_two=const.styles['scheduled'] + d['date_two'] + ':' + const.styles['normal'])
-                col[i].update(text=const.styles['scheduled'] + utils.format_inline(d['text'], 'scheduled') + const.styles['normal'])
-            elif d['date_two'] == 'Deadline':
-                col[i].update(date_two=const.styles['deadline'] + ' ' + d['date_two'] + ':' + const.styles['normal'])
-            else:   # Just a newline char
-                col[i].update(date_two=' '*10)
-
-            # Apply diff style depending on due date
-            d['tag'] = d['tag'].strip()
-            if d['days'] > 0:
-                col[i].update(num_tasks=const.styles['checkbox'] + d['num_tasks'] + const.styles['normal'])
-                col[i].update(date_one=const.styles['date'] + d['date_one'] + const.styles['normal'] + '\n')
-                col[i].update(tag=const.styles['tag'] + d['tag'] + const.styles['normal'])
-                col[i].update(category=const.styles['tag'] + d['category'] + const.styles['normal'])
-                if re.search('Deadline', d['date_two']):
-                    col[i].update(text=utils.format_inline(d['text']) + const.styles['normal'])
-            elif d['days'] < 0:
-                col[i].update(date_one=const.styles['late'] + d['date_one'] + '\n')
-                col[i].update(category=const.styles['late'] + d['category'])
-                if re.search('Deadline', d['date_two']):
-                    col[i].update(text=const.styles['late'] + d['text'])
-            elif d['days'] == 0:
-                col[i].update(date_one=const.styles['today'] + d['date_one'] + '\n')
-                col[i].update(category=const.styles['today'] + d['category'])
-                if re.search('Deadline', d['date_two']):
-                    col[i].update(text=const.styles['today'] + d['text'])
-
-        self.colored = col
+        self.colored = []
+        for d in self.active:
+            self.colored.append(utils.colorize(d))
 
 #-----------------------------------------------------------
 # Loop through all 'org' files listed in 'vimrc'
@@ -308,27 +268,18 @@ def orgTreeFromFile(**kwargs):
         org = OrgTree(f, todostates, **kwargs)
         todolist += org.all
 
-    # Add dates for the next week even if there are no tasks
+    # Add dates even if there are no tasks, and add future deadlines for "today"
     if kwargs['agenda']:
-        for d in const.dates_agenda:
-            if not any(re.search(d, item) for item in [x['date_one'] for x in todolist]):
-                blank_dict = {
-                    'date_one': const.styles['bright'] + d,
-                    'date_two': '', 'category': '', 'text': '', 'level': '',
-                    'num_tasks': '', 'tag': '', 'todostate': ''}
-                todolist.append(blank_dict)
-
-    todolist = sorted(todolist, key=lambda d: const.regex['ansicolors'].sub('', d['date_one']))
-
-    if kwargs['agenda']:
-        for i,d in enumerate(todolist):
-            todolist[i]['date_one'] = utils.day_names(d['date_one'])
+        todolist = utils.update_agenda(todolist, int(kwargs['num_days']))
+    else:
+        todolist = sorted(todolist, key=lambda d: d['days'])
 
     # Remove repeating dates
     repeats = []
     for i,d in enumerate(todolist):
-        if i > 0 and todolist[i]['date_one'] == todolist[i-1]['date_one']:
-            repeats.append(i)
+        d1 = const.regex['ansicolors'].sub('', todolist[i]['date_one'])
+        d0 = const.regex['ansicolors'].sub('', todolist[i-1]['date_one'])
+        if i > 0 and d1 == d0: repeats.append(i)
     for i in repeats: todolist[i]['date_one'] = ''
 
     # Print

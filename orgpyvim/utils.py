@@ -1,5 +1,5 @@
-import re
-from datetime import datetime
+import re, copy
+from datetime import datetime, timedelta
 from . import const
 
 def get_org_files(rcfile):
@@ -35,15 +35,28 @@ def get_todo_states(rcfile):
 # Date-related functions
 #-------------------------------------------------------------------------------
 def days_until_due(duedate):
-    """Calculate the number of days left until a task's due date."""
+    """Calculate the number of days left until a task's due date.
+
+    Args:
+        duedate (str): format should be '<%Y-%m-%d %a>' (including brackets)
+    """
     dt = datetime.strptime(slugify(duedate), '%Y-%m-%d %a')
     timediff = dt - const.today
     return timediff.days
 
 def day_names(str_):
-    """Convert a date string (w/ ANSI colors) to include full day name, padded."""
+    """Convert a date string to include full day name, padded.
+
+    Args:
+        str_ (str): the string should contain '<%Y-%m-%d %a>' (including
+            brackets). It also works if ANSI sequences are present.
+
+    Output:
+        A string with the date portion replaced by '%A %d %b %Y', where '%A' is
+        the full day name, and '%b' is the abbreviated month name.
+    """
     match = const.regex['date'].search(str_).group()
-    repl = datetime.strptime(match, '<%Y-%m-%d %a>').strftime('%A %d %b %Y')
+    repl = datetime.strptime(match, '<%Y-%m-%d %a>').strftime('%A %d %b')
     repl = repl.split()[0] + ' '*(10 - len(repl.split()[0])) + ' '.join(repl.split()[1:4])
     tmp = re.sub(match, repl, str_)
     return tmp
@@ -74,6 +87,96 @@ def format_inline(str_, reset='normal'):
 
     return str_
 
+# Main function applying styles to a line's dict object
+#---------------------------------------
+def colorize(dict_):
+    """Apply ANSI sequences to specific dictionary entries.
+
+    The input dictionary should be of the same format as those returned by
+    'tree.OrgNode.parse()'.
+    """
+    styles = const.styles
+    dict_['tag'] = dict_['tag'].strip()
+    tagtype = 'tag'
+    if re.search('urgent', dict_['tag'], re.IGNORECASE): tagtype = 'urgent'
+
+    # If 'category' is a list, combine them
+    if isinstance(dict_['category'], list):
+        dict_.update(category=': '.join(dict_['category']))
+
+    # Different styles for different todo states
+    state = dict_['todostate'].strip().lower()
+    dict_.update(todostate=styles[state] + dict_['todostate'].strip() + styles['normal'])
+
+    # Scheduled vs Deadline
+    dtype = dict_['date_two'].strip().lower()
+    if dtype == 'deadline': dict_.update(date_two=' ' + dict_['date_two'])
+
+    if dtype == '':
+        dict_.update(date_two=' '*10)
+    else:
+        dict_.update(date_two=styles[dtype] + dict_['date_two'] + ':' + styles['normal'])
+
+    # Apply diff style depending on due date
+    if dict_['days'] < 0:
+        duedate = 'late'
+    elif dict_['days'] == 0:
+        duedate = 'today'
+    else:
+        duedate = 'later'
+    dict_.update(tag=styles[tagtype] + dict_['tag'] + styles['normal'],
+        num_tasks=styles['checkbox'] + dict_['num_tasks'] + styles['normal'],
+        date_one=styles[duedate] + dict_['date_one'] + styles['normal'] + '\n')
+
+    if dict_['days'] > 0:
+        dict_.update(category=styles['category'] + dict_['category'] + styles['normal'],
+            text=format_inline(dict_['text']) + styles['normal'])
+    else:
+        dict_.update(text=styles[dtype] + format_inline(dict_['text'], dtype) + styles['normal'],
+            category=styles[duedate] + dict_['category'])
+
+    return dict_
+
+# Workhorse function to update the line's dict for 'agenda' mode
+#---------------------------------------
+def update_agenda(list_, num_days=7):
+    """Update entries if 'agenda' view is chosen."""
+    todolist = copy.deepcopy(list_)
+    dates_agenda = []
+    for i in range(num_days):
+        dates_agenda.append('<' + (const.today + timedelta(i)).strftime('%Y-%m-%d %a') + '>')
+
+    repeat_tasks = []
+    for i,d in enumerate(todolist):
+        if re.search('Deadline', d['date_two']):
+            if 0 < d['days'] < num_days:
+                d_copy = dict(d)
+                d_copy['date_one'] = const.regex['date'].sub(const.today_date, d['date_one'])
+                d_copy['date_two'] = const.styles['deadline'] + ' In' + \
+                    ' '*(3 - len(str(d['days']))) + str(d['days']) + ' d.:'
+                repeat_tasks.append(d_copy)
+            elif d['days'] < 0:
+                todolist[i].update(date_one=const.styles['late'] + const.today_date + '\n',
+                        date_two= const.styles['deadline'] + ' In ' + str(d['days']) + ' d.:')
+
+    todolist = todolist + repeat_tasks
+
+    # Add a blank entry for dates with no active tasks
+    for d in dates_agenda:
+        if not any(re.search(d, item) for item in [x['date_one'] for x in todolist]):
+            blank_dict = {
+                'date_one': const.styles['bright'] + d,
+                'date_two': '', 'category': '', 'text': '', 'level': '',
+                'num_tasks': '', 'tag': '', 'todostate': '', 'days': days_until_due(d)}
+            todolist.append(blank_dict)
+
+    todolist = sorted(todolist, key=lambda d: (const.regex['ansicolors'].sub('', d['date_one']), d['days']))
+
+    for i,d in enumerate(todolist):
+        todolist[i]['date_one'] = day_names(d['date_one'])
+
+    return todolist
+
 #-------------------------------------------------------------------------------
 # Main function concerned with parsing each task line/groups of lines
 #-------------------------------------------------------------------------------
@@ -94,7 +197,6 @@ def get_parse_string(todostates):
     todostate_string = r'(?P<todostate>(' + r'|'.join(todos) + r')|)'
     headerText_string = r'(?P<text>.*?)'
     numTasks_string = r'(?P<num_tasks>\s*\[\d+/\d+\]\s*|)'
-#    date1 = r'(?P<date_one>[\<\[]\d{4}-\d{2}-\d{2}\s[a-zA-Z]{3}[\>\]]|)'
     date1 = r'(?P<date_one>' + const.date_str + '|)'
     tag_string = r'(?P<tag>[ \t]*:[\w:]*:)*'
     date2 = r'(?P<date_two>\n\s+[A-Z]+:\s' + const.date_str + r'(?:\n|$)|(?:\n|$))'
@@ -112,28 +214,31 @@ def print_delim(n=30):
     print('\t\t' + const.styles['url'] + n*'#')
 
 def print_header(**kwargs):
+    """Print a colorful, informative header."""
+    styles = const.styles
     if kwargs['colors']:
         print_delim(40)
         if kwargs['agenda']:
-            print('\t\t\t    ' + const.styles['checkbox'] + 'WEEK AGENDA' + \
-                    const.styles['normal'])
+            print('\t\t\t    ' + styles['checkbox'] + 'WEEK AGENDA' + \
+                    styles['normal'])
         elif kwargs['tags']:
-            print('\t\t    ' + const.styles['checkbox'] + 'Headlines with ' + \
-                    const.styles['tag'] + 'TAGS ' + const.styles['checkbox'] + 'match: ' + \
-                    const.styles['late'] + '%s' % kwargs['tags'])
+            print('\t\t    ' + styles['checkbox'] + 'Headlines with ' + \
+                    styles['tag'] + 'TAGS ' + styles['checkbox'] + 'match: ' + \
+                    styles['late'] + '%s' % kwargs['tags'])
         elif kwargs['categories']:
-            print('\t\t ' + const.styles['checkbox'] + 'Headlines with ' + \
-                    const.styles['tag'] + 'CATEGORY ' + const.styles['checkbox'] + 'match: ' + \
-                    const.styles['late'] + '%s' % kwargs['categories'])
+            print('\t\t ' + styles['checkbox'] + 'Headlines with ' + \
+                    styles['tag'] + 'CATEGORY ' + styles['checkbox'] + 'match: ' + \
+                    styles['late'] + '%s' % kwargs['categories'])
 
         # All dates and tags
         else:
             if kwargs['states']:
-                state = const.styles[kwargs['states'].lower()] + kwargs['states'].upper()
+                state = styles[kwargs['states'].lower()] + kwargs['states'].upper()
             else:
-                state = const.styles['late'] + 'ALL'
-            print '\t\t' + const.styles['checkbox'] + 'Global list of ' + \
-                const.styles['todo'] + 'TODO' + const.styles['checkbox'] + ' items of type: ' + state
+                state = styles['late'] + 'ALL'
+            statelen = len(const.regex['ansicolors'].sub('', state))
+            print '\t\t' + styles['checkbox'] + ' '*(5 - statelen) + 'Global list of ' + \
+                styles['todo'] + 'TODO' + styles['checkbox'] + ' items of type: ' + state
 
         print_delim(40)
 

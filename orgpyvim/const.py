@@ -1,16 +1,12 @@
 import re
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from colorama import init, Fore, Back, Style
 init(autoreset=True)
 
 # Global variables
 #-------------------------------------------------------------------------------
 today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-dates_agenda = []
-# %A is for full day name
-for i in range(7):
-    dates_agenda.append('<' + (today + timedelta(i)).strftime('%Y-%m-%d %a') + '>')
+today_date = '<' + today.strftime('%Y-%m-%d %a') + '>'
 
 styles = {
     'normal': Fore.WHITE + Back.BLACK + Style.NORMAL,
@@ -21,11 +17,13 @@ styles = {
     'deadline': Fore.RED + Back.BLACK + Style.BRIGHT,
     'scheduled': Fore.CYAN + Back.BLACK + Style.BRIGHT,
     'today': Fore.GREEN + Back.BLACK + Style.BRIGHT,
-    'late': Fore.RED + Back.BLACK + Style.BRIGHT ,
+    'late': Fore.RED + Back.BLACK + Style.BRIGHT,
     'checkbox': Fore.MAGENTA + Back.BLACK + Style.BRIGHT,
-    'date': Fore.BLUE + Back.BLACK + Style.BRIGHT,
+    'later': Fore.BLUE + Back.BLACK + Style.BRIGHT,
     'code': Fore.GREEN + Style.BRIGHT,
+    'category': Fore.MAGENTA + Style.BRIGHT,
     'tag': Fore.YELLOW + Style.BRIGHT,
+    'urgent': Fore.WHITE + Back.RED + Style.BRIGHT, # For special "urgent" tags
     'url': Fore.BLUE + Style.BRIGHT,
     'verb': Fore.CYAN + Style.BRIGHT
 }

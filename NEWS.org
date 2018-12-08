@@ -1,3 +1,8 @@
+* v0.4.0 -- 2018-12-08
+** Add argument =-n | --num_days= to control number of days in the ~agenda~
+** Add style for =:urgent:= tags (red background, white foreground)
+** Moved =colorize()= to ~utils.py~ (from ~tree.py~)
+** =update_agenda()= is a new function that handles ~agenda~ functionality
 * v0.3.0 -- 2018-12-04
 ** Added functionality to work with ~DEADLINE~ and ~SCHEDULED~ date types
 ** Updated =formate_inline= to "reset" the style to what it was before the function was called

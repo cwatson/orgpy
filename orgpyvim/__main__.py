@@ -18,6 +18,9 @@ def parse_cli(argv=None):
     parser.add_argument('-a', '--agenda',
                         action='store_true',
                         help='Show the weekly agenda')
+    parser.add_argument('-n', '--num_days',
+                        action='store', default=7,
+                        help='Choose the number of days for the agenda')
     parser.add_argument('-s', '--states',
                         action='store', default=None,
                         help='Filter by state(s) (i.e., TODO, STARTED, etc.)')
