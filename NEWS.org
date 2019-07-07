@@ -1,4 +1,6 @@
-* v0.5.0 --<2019-07-06 Sat>
+* v0.6.0 -- <2019-07-06 Sat>
+** Change the regex for ~numTasks_string~ to fix spacing issue when tags are present
+* v0.5.0 -- <2019-07-06 Sat>
 ** Change the default type of =-n= to ~int~
 ** Add apostrophes to the regex for *code* and *verb* text
 ** Change how ~date_one~ and ~date_two~ are processed (specifically regarding *newlines*)

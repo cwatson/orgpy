@@ -201,7 +201,7 @@ def get_parse_string(todostates):
     todos = [r'\s' + x + r'\s' for x in todos]
     todostate_string = r'(?P<todostate>(' + r'|'.join(todos) + r')|)'
     headerText_string = r'(?P<text>.*?)'
-    numTasks_string = r'(?P<num_tasks>\s*\[\d+/\d+\]\s*|)'
+    numTasks_string = r'(?P<num_tasks>\s*\[\d+/\d+\]|)'
     date1 = r'(?P<date_one>' + const.date_str + '|)'
     tag_string = r'(?P<tag>[ \t]*:[\w:]*:)*'
     date2 = r'(?P<date_two>\n\s+[A-Z]+:\s' + const.date_str + r'(?:\n|$)|(?:\n|$))'
@@ -251,26 +251,29 @@ def print_all(list_, **kwargs):
     """Print the todo list lines, padding the columns."""
     terminfo = os.popen('stty -a', 'r').read()
     termwidth = re.search(r'columns \d{2,}', terminfo).group().split()[1]
-    tag_lens = []; state_lens = []; text_lens = []; check_lens = []
+    tag_lens = []; state_lens = []; text_lens = []; check_lens = []; cat_lens = []
     for i,d in enumerate(list_):
         state_lens.append(len(const.regex['ansicolors'].sub('', d['todostate'])))
-        tag_lens.append(len(const.regex['ansicolors'].sub('', d['category'])))
+        cat_lens.append(len(const.regex['ansicolors'].sub('', d['category'])))
         text_lens.append(len(const.regex['ansicolors'].sub('', d['text'])))
         check_lens.append(len(const.regex['ansicolors'].sub('', d['num_tasks'])))
+        tag_lens.append(len(const.regex['ansicolors'].sub('', d['tag'])))
 
     longest_state = max(state_lens)
     if kwargs['agenda']:
         maxdatelen = 18     # Date string includes full day name
     else:
         maxdatelen = 14
-    longest_tag = max(maxdatelen, max(tag_lens))
+    longest_cat = max(maxdatelen, max(cat_lens))
     longest_text = max(text_lens)
     longest_check = max(check_lens)
+    longest_tag = max(tag_lens)
     print_header(**kwargs)
     for i,d in enumerate(list_):
         d['todostate'] = d['todostate'] + ' '*(longest_state + 2 - state_lens[i])
-        d['category'] = d['category'] + ' '*(longest_tag + 1 - tag_lens[i])
+        d['category'] = d['category'] + ' '*(longest_cat + 1 - cat_lens[i])
         d['num_tasks'] = d['num_tasks'] + ' '*(longest_text + 1 - text_lens[i]) + \
             ' '*(longest_check + 1 - check_lens[i])
+        d['tag'] = d['tag'] + ' '*(longest_tag + 1 - tag_lens[i])
         print re.sub('<|>', '', d['date_one']) + '  ' + d['category'] + \
             d['date_two'] + '  ' + d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag']
