@@ -132,8 +132,10 @@ class OrgNode:
 
             self.add_category()
 
-        # If 'category' is a list, combine them
+        # If 'category' is a list, combine them; also, strip tags
+        #TODO figure out why I added the line to strip tags...
         for i,d in enumerate(self.active):
+            self.active[i].update(tag=d['tag'].strip())
             if isinstance(d['category'], list):
                 self.active[i].update(category=': '.join(d['category']))
 
@@ -190,14 +192,18 @@ class OrgNode:
             if const.regex['date'].search(d['date_two']):
                 if re.search('SCHEDULED|DEADLINE', d['date_two']):
                     d['date_one'] = d['date_two'].strip().split(': ')[1]
-                    d['date_two'] = d['date_two'].strip().split(': ')[0].title()
+                    d['date_two'] = d['date_two'].strip().split(': ')[0].title() + ':'
+                    if re.search('Deadline', d['date_two']):
+                        d['date_two'] = ' ' + d['date_two']
+            if d['date_two'] == '\n': d['date_two'] = ' '*10
+            if '\n' not in d['date_one']: d['date_one'] = d['date_one'] + '\n'
         self.parsed = matches
 
     def get_active_todos(self):
         """Return only the active TODO tasks."""
         date_lines = []
         for _,d in enumerate(self.parsed):
-            if d['date_one'] != '':
+            if d['date_one'].strip() != '':
                 if self.properties['todostates']['in_progress'].search(d['todostate']):
                     date_lines.append(d)
         self.active = date_lines
@@ -270,15 +276,15 @@ def orgTreeFromFile(**kwargs):
 
     # Add dates even if there are no tasks, and add future deadlines for "today"
     if kwargs['agenda']:
-        todolist = utils.update_agenda(todolist, int(kwargs['num_days']))
+        todolist = utils.update_agenda(todolist, **kwargs)
     else:
         todolist = sorted(todolist, key=lambda d: d['days'])
 
     # Remove repeating dates
     repeats = []
     for i,d in enumerate(todolist):
-        d1 = const.regex['ansicolors'].sub('', todolist[i]['date_one'])
-        d0 = const.regex['ansicolors'].sub('', todolist[i-1]['date_one'])
+        d1 = const.regex['ansicolors'].sub('', todolist[i]['date_one'].strip())
+        d0 = const.regex['ansicolors'].sub('', todolist[i-1]['date_one'].strip())
         if i > 0 and d1 == d0: repeats.append(i)
     for i in repeats: todolist[i]['date_one'] = ''
 

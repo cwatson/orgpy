@@ -19,7 +19,7 @@ def parse_cli(argv=None):
                         action='store_true',
                         help='Show the weekly agenda')
     parser.add_argument('-n', '--num_days',
-                        action='store', default=7,
+                        action='store', type=int, default=7,
                         help='Choose the number of days for the agenda')
     parser.add_argument('-s', '--states',
                         action='store', default=None,

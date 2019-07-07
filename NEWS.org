@@ -1,13 +1,19 @@
-* v0.4.0 -- 2018-12-08
+* v0.5.0 --<2019-07-06 Sat>
+** Change the default type of =-n= to ~int~
+** Add apostrophes to the regex for *code* and *verb* text
+** Change how ~date_one~ and ~date_two~ are processed (specifically regarding *newlines*)
+** Fix =update_agenda= to handle repeats
+** Reduce ~maxdatelen~ in =print_all=
+* v0.4.0 -- <2018-12-08 Sat>
 ** Add argument =-n | --num_days= to control number of days in the ~agenda~
 ** Add style for =:urgent:= tags (red background, white foreground)
-** Moved =colorize()= to ~utils.py~ (from ~tree.py~)
+** Move =colorize()= to ~utils.py~ (from ~tree.py~)
 ** =update_agenda()= is a new function that handles ~agenda~ functionality
-* v0.3.0 -- 2018-12-04
-** Added functionality to work with ~DEADLINE~ and ~SCHEDULED~ date types
-** Updated =formate_inline= to "reset" the style to what it was before the function was called
+* v0.3.0 -- <2018-12-04 Tue>
+** Add functionality to work with ~DEADLINE~ and ~SCHEDULED~ date types
+** Update =formate_inline= to "reset" the style to what it was before the function was called
 ** Update =colorize= to use the style with the actual name (lowercase) of the current TODO keyword
-* v0.2.0 -- 2018-12-03
+* v0.2.0 -- <2018-12-03 Mon>
 ** =tree.py=
 *** New function =OrgNode.add_tag()= allows for *tag inheritance*
     - Currently only works for a "level-1" heading; i.e., a line with 1 leading asterisk
@@ -19,14 +25,14 @@
 ** Change the pattern name for task text from =header= to =text=
 ** Move the =print_all_dict= function to =utils= and rename it
    - Replaced =print_all=
-* v0.1.0 -- 2018-12-02
-** Overhauled the implementation to use "trees", to allow for tag/category inheritance
-** Added a CLI option =-g | --categories= to filter by category
+* v0.1.0 -- <2018-12-02 Sun>
+** Overhaul the implementation to use "trees", to allow for tag/category inheritance
+** Add a CLI option =-g | --categories= to filter by category
 ** Print dates with no tasks if =--agenda= is selected
 ** Print full date names in =agenda= views
 ** Change styles for several item types (e.g., *dates*)
 ** Add a ~regex~ to capture *ANSI* color sequences
 ** When "colorizing", make a *deep copy* of the active todo list, to leave that intact
 ** Print more informative headers
-* v0.0.1 -- 2018-11-
+* v0.0.1 -- <2018-11-26 Mon>
 ** Initial commit of repository

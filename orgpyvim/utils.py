@@ -1,4 +1,5 @@
-import re, copy
+import os, re, copy
+from math import ceil
 from datetime import datetime, timedelta
 from . import const
 
@@ -80,7 +81,7 @@ def format_inline(str_, reset='normal'):
     for key, val in const.inline.iteritems():
         if val['pattern'].search(str_):
             matches = val['pattern'].findall(str_)
-            repls = [val['cols'] + x.replace(val['delim'], '') + const.styles[reset]
+            repls = [val["cols"] + x.replace(val["delim"], "") + const.styles[reset]
                         for x in matches]
             for x,y in zip(matches, repls):
                 str_ = str_.replace(x, y)
@@ -96,26 +97,19 @@ def colorize(dict_):
     'tree.OrgNode.parse()'.
     """
     styles = const.styles
-    dict_['tag'] = dict_['tag'].strip()
     tagtype = 'tag'
     if re.search('urgent', dict_['tag'], re.IGNORECASE): tagtype = 'urgent'
-
-    # If 'category' is a list, combine them
-    if isinstance(dict_['category'], list):
-        dict_.update(category=': '.join(dict_['category']))
 
     # Different styles for different todo states
     state = dict_['todostate'].strip().lower()
     dict_.update(todostate=styles[state] + dict_['todostate'].strip() + styles['normal'])
 
     # Scheduled vs Deadline
-    dtype = dict_['date_two'].strip().lower()
-    if dtype == 'deadline': dict_.update(date_two=' ' + dict_['date_two'])
-
-    if dtype == '':
-        dict_.update(date_two=' '*10)
+    dtype = dict_['date_two'].strip(': ').lower()
+    if dtype != '':
+        dict_.update(date_two=styles[dtype] + dict_['date_two'] + styles['normal'])
     else:
-        dict_.update(date_two=styles[dtype] + dict_['date_two'] + ':' + styles['normal'])
+        dtype = 'normal'
 
     # Apply diff style depending on due date
     if dict_['days'] < 0:
@@ -126,7 +120,7 @@ def colorize(dict_):
         duedate = 'later'
     dict_.update(tag=styles[tagtype] + dict_['tag'] + styles['normal'],
         num_tasks=styles['checkbox'] + dict_['num_tasks'] + styles['normal'],
-        date_one=styles[duedate] + dict_['date_one'] + styles['normal'] + '\n')
+        date_one=styles[duedate] + dict_['date_one'] + styles['normal'])
 
     if dict_['days'] > 0:
         dict_.update(category=styles['category'] + dict_['category'] + styles['normal'],
@@ -137,27 +131,38 @@ def colorize(dict_):
 
     return dict_
 
-# Workhorse function to update the line's dict for 'agenda' mode
+# Function to update the line's dict for 'agenda' mode
 #---------------------------------------
-def update_agenda(list_, num_days=7):
+def update_agenda(list_, **kwargs):
     """Update entries if 'agenda' view is chosen."""
+    styles = const.styles
+    num_days = int(kwargs['num_days'])
     todolist = copy.deepcopy(list_)
     dates_agenda = []
     for i in range(num_days):
-        dates_agenda.append('<' + (const.today + timedelta(i)).strftime('%Y-%m-%d %a') + '>')
+        dates_agenda.append((const.today + timedelta(i)).strftime('<%Y-%m-%d %a>'))
 
-    repeat_tasks = []
+    repeat_tasks = []; deadline = []
+    for d in todolist:
+        if kwargs['colors']:
+            if d['days'] > ceil(num_days / 2):
+                deadline.append(styles['deadline_two'])
+            else:
+                deadline.append(styles['deadline'])
+        else:
+            deadline.append('')
+
     for i,d in enumerate(todolist):
         if re.search('Deadline', d['date_two']):
             if 0 < d['days'] < num_days:
                 d_copy = dict(d)
                 d_copy['date_one'] = const.regex['date'].sub(const.today_date, d['date_one'])
-                d_copy['date_two'] = const.styles['deadline'] + ' In' + \
-                    ' '*(3 - len(str(d['days']))) + str(d['days']) + ' d.:'
+                day_str = str(d['days'])
+                d_copy['date_two'] = deadline[i] + ' In' + ' '*(3 - len(day_str)) + day_str + ' d.:' + styles['normal']
                 repeat_tasks.append(d_copy)
             elif d['days'] < 0:
-                todolist[i].update(date_one=const.styles['late'] + const.today_date + '\n',
-                        date_two= const.styles['deadline'] + ' In ' + str(d['days']) + ' d.:')
+                todolist[i].update(date_one=styles['late'] + const.today_date + '\n',
+                        date_two=deadline[i] + ' In ' + str(d['days']) + ' d.:' + styles['bright'])
 
     todolist = todolist + repeat_tasks
 
@@ -165,7 +170,7 @@ def update_agenda(list_, num_days=7):
     for d in dates_agenda:
         if not any(re.search(d, item) for item in [x['date_one'] for x in todolist]):
             blank_dict = {
-                'date_one': const.styles['bright'] + d,
+                'date_one': styles['bright'] + d,
                 'date_two': '', 'category': '', 'text': '', 'level': '',
                 'num_tasks': '', 'tag': '', 'todostate': '', 'days': days_until_due(d)}
             todolist.append(blank_dict)
@@ -244,6 +249,8 @@ def print_header(**kwargs):
 
 def print_all(list_, **kwargs):
     """Print the todo list lines, padding the columns."""
+    terminfo = os.popen('stty -a', 'r').read()
+    termwidth = re.search(r'columns \d{2,}', terminfo).group().split()[1]
     tag_lens = []; state_lens = []; text_lens = []; check_lens = []
     for i,d in enumerate(list_):
         state_lens.append(len(const.regex['ansicolors'].sub('', d['todostate'])))
@@ -253,9 +260,9 @@ def print_all(list_, **kwargs):
 
     longest_state = max(state_lens)
     if kwargs['agenda']:
-        maxdatelen = 22     # Date string includes full day name
+        maxdatelen = 18     # Date string includes full day name
     else:
-        maxdatelen = 18
+        maxdatelen = 14
     longest_tag = max(maxdatelen, max(tag_lens))
     longest_text = max(text_lens)
     longest_check = max(check_lens)

@@ -15,11 +15,12 @@ styles = {
     'doing': Fore.WHITE + Back.BLUE,
     'wait': Fore.BLACK + Back.YELLOW,
     'deadline': Fore.RED + Back.BLACK + Style.BRIGHT,
+    'deadline_two': Fore.YELLOW + Back.BLACK + Style.BRIGHT,
     'scheduled': Fore.CYAN + Back.BLACK + Style.BRIGHT,
-    'today': Fore.GREEN + Back.BLACK + Style.BRIGHT,
     'late': Fore.RED + Back.BLACK + Style.BRIGHT,
-    'checkbox': Fore.MAGENTA + Back.BLACK + Style.BRIGHT,
+    'today': Fore.GREEN + Back.BLACK + Style.BRIGHT,
     'later': Fore.BLUE + Back.BLACK + Style.BRIGHT,
+    'checkbox': Fore.MAGENTA + Back.BLACK + Style.BRIGHT,
     'code': Fore.GREEN + Style.BRIGHT,
     'category': Fore.MAGENTA + Style.BRIGHT,
     'tag': Fore.YELLOW + Style.BRIGHT,
@@ -36,11 +37,11 @@ inline = {
         'delim': '*',
         'cols': styles['bright']},
     'code': {
-        'pattern': re.compile('=[\._\w]+='),
+        'pattern': re.compile("=[\._'\w]+="),
         'delim': '=',
         'cols': styles['code']},
     'verb': {
-        'pattern': re.compile('~[\._\w\s]+~'),
+        'pattern': re.compile("~[\._'\w\s]+~"),
         'delim': '~',
         'cols': styles['verb']}
 }
