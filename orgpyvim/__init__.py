@@ -6,4 +6,4 @@ from __future__ import absolute_import
 from .tree import OrgTree, orgTreeFromFile
 from . import const, utils
 
-__all__ = ['OrgTree', 'orgTreeFromFile']    # Seems equal to the stuff in ".core" above
+__all__ = ['OrgTree', 'orgTreeFromFile']    # Seems equal to the stuff in ".tree" above

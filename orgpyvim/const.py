@@ -33,7 +33,7 @@ styles = {
 #---------------------------------------
 inline = {
     'bold': {
-        'pattern': re.compile('\*[,\w\s]+\*'),
+        'pattern': re.compile('\*[,\w\s-]+\*'),
         'delim': '*',
         'cols': styles['bright']},
     'code': {
