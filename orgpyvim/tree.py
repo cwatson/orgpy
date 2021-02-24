@@ -165,7 +165,7 @@ class OrgNode:
         drawer = lines[bounds[0]:bounds[1]]
         drawerlines = [x.split(':')[1:] for x in drawer[1:]]
         properties = {d[0].lower(): d[1].strip() for d in drawerlines}
-        for k,v in properties.iteritems():
+        for k,v in properties.items():
             if k in self.properties.keys():
                 self.properties.update({k: [self.properties[k], v]})
             else:
@@ -290,6 +290,6 @@ def orgTreeFromFile(**kwargs):
 
     # Print
     if not todolist:
-        print "No tasks!"; return
+        print("No tasks!"); return
     else:
         utils.print_all(todolist, **kwargs)

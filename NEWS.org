@@ -1,3 +1,5 @@
+* v0.7.0 -- <2021-02-24 Wed>
+** Make changes to work with *Python 3.6*
 * v0.6.0 -- <2019-07-06 Sat>
 ** Change the regex for ~numTasks_string~ to fix spacing issue when tags are present
 * v0.5.0 -- <2019-07-06 Sat>

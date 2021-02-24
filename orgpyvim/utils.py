@@ -78,7 +78,7 @@ def format_inline(str_, reset='normal'):
         text = slugify(str_.split('[[')[1].split('][')[1].split(']]')[0])
         str_ = const.regex['url'].sub(const.styles['url'] + text + const.styles[reset], str_)
 
-    for key, val in const.inline.iteritems():
+    for key, val in const.inline.items():
         if val['pattern'].search(str_):
             matches = val['pattern'].findall(str_)
             repls = [val["cols"] + x.replace(val["delim"], "") + const.styles[reset]
@@ -195,7 +195,7 @@ def get_parse_string(todostates):
     #all_content = re.findall(r'(?P<all>\*{1,9}.*?)(?:\n\*)', org.data, re.DOTALL)
     # TODO
 
-    level_string = r'(?P<level>\*{1,9}|\h{1,9}-)'
+    level_string = r'(?P<level>\*{1,9}|[^\S\n ]{1,9}-)'#\h{1,9}-)'
     todos = [x.pattern.split('|') for x in todostates.values()]
     todos = [item for sublist in todos for item in sublist]
     todos = [r'\s' + x + r'\s' for x in todos]
@@ -242,8 +242,8 @@ def print_header(**kwargs):
             else:
                 state = styles['late'] + 'ALL'
             statelen = len(const.regex['ansicolors'].sub('', state))
-            print '\t\t' + styles['checkbox'] + ' '*(5 - statelen) + 'Global list of ' + \
-                styles['todo'] + 'TODO' + styles['checkbox'] + ' items of type: ' + state
+            print('\t\t' + styles['checkbox'] + ' '*(5 - statelen) + 'Global list of ' + \
+                styles['todo'] + 'TODO' + styles['checkbox'] + ' items of type: ' + state)
 
         print_delim(40)
 
@@ -275,5 +275,5 @@ def print_all(list_, **kwargs):
         d['num_tasks'] = d['num_tasks'] + ' '*(longest_text + 1 - text_lens[i]) + \
             ' '*(longest_check + 1 - check_lens[i])
         d['tag'] = d['tag'] + ' '*(longest_tag + 1 - tag_lens[i])
-        print re.sub('<|>', '', d['date_one']) + '  ' + d['category'] + \
-            d['date_two'] + '  ' + d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag']
+        print(re.sub('<|>', '', d['date_one']) + '  ' + d['category'] + \
+            d['date_two'] + '  ' + d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag'])
