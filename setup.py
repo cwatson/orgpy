@@ -1,6 +1,7 @@
-from setuptools import setup, find_packages
 from os import path
 from io import open
+
+from setuptools import setup, find_packages
 
 setup(
     name = 'orgpyvim',
@@ -16,8 +17,8 @@ setup(
         'Operating System :: POSIX :: Linux',
     ],
     license = 'Apache 2.0',
-    packages = ['orgpyvim'],#find_packages(),
+    packages = find_packages(),
     keywords = ['orgmode'],
-    install_requires = ['setuptools', 'argparse', 'colorama', 'copy', 'datetime', 'os', 're', 'sys', '__future__'],
+    install_requires = ['setuptools', 'argparse', 'colorama', 'copy', 'datetime', 'os', 're', 'shutil', 'sys'],
     python_requires = '>=3.6',
 )

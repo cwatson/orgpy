@@ -1,6 +1,9 @@
-import os, re, copy
+import re
+import copy
+import shutil
 from math import ceil
 from datetime import datetime, timedelta
+
 from . import const
 
 def get_org_files(rcfile):
@@ -53,7 +56,7 @@ def day_names(str_):
             brackets). It also works if ANSI sequences are present.
 
     Output:
-        A string with the date portion replaced by '%A %d %b %Y', where '%A' is
+        A string with the date portion replaced by '%A %d %b', where '%A' is
         the full day name, and '%b' is the abbreviated month name.
     """
     match = const.regex['date'].search(str_).group()
@@ -68,7 +71,8 @@ def day_names(str_):
 def slugify(str_):
     """Remove single quotes, brackets, and newline characters from a string."""
     bad_chars = ["'", '[', ']', '\n', '<', '>' , '\\']
-    for ch in bad_chars: str_ = str_.replace(ch, '')
+    for ch in bad_chars:
+        str_ = str_.replace(ch, '')
 
     return str_
 
@@ -83,7 +87,7 @@ def format_inline(str_, reset='normal'):
             matches = val['pattern'].findall(str_)
             repls = [val["cols"] + x.replace(val["delim"], "") + const.styles[reset]
                         for x in matches]
-            for x,y in zip(matches, repls):
+            for x, y in zip(matches, repls):
                 str_ = str_.replace(x, y)
 
     return str_
@@ -98,7 +102,8 @@ def colorize(dict_):
     """
     styles = const.styles
     tagtype = 'tag'
-    if re.search('urgent', dict_['tag'], re.IGNORECASE): tagtype = 'urgent'
+    if re.search('urgent', dict_['tag'], re.IGNORECASE):
+        tagtype = 'urgent'
 
     # Different styles for different todo states
     state = dict_['todostate'].strip().lower()
@@ -119,15 +124,15 @@ def colorize(dict_):
     else:
         duedate = 'later'
     dict_.update(tag=styles[tagtype] + dict_['tag'] + styles['normal'],
-        num_tasks=styles['checkbox'] + dict_['num_tasks'] + styles['normal'],
-        date_one=styles[duedate] + dict_['date_one'] + styles['normal'])
+                 num_tasks=styles['checkbox'] + dict_['num_tasks'] + styles['normal'],
+                 date_one=styles[duedate] + dict_['date_one'] + styles['normal'])
 
     if dict_['days'] > 0:
         dict_.update(category=styles['category'] + dict_['category'] + styles['normal'],
-            text=format_inline(dict_['text']) + styles['normal'])
+                     text=format_inline(dict_['text']) + styles['normal'])
     else:
         dict_.update(text=styles[dtype] + format_inline(dict_['text'], dtype) + styles['normal'],
-            category=styles[duedate] + dict_['category'])
+                     category=styles[duedate] + dict_['category'])
 
     return dict_
 
@@ -152,13 +157,14 @@ def update_agenda(list_, **kwargs):
         else:
             deadline.append('')
 
-    for i,d in enumerate(todolist):
+    for i, d in enumerate(todolist):
         if re.search('Deadline', d['date_two']):
             if 0 < d['days'] < num_days:
                 d_copy = dict(d)
                 d_copy['date_one'] = const.regex['date'].sub(const.today_date, d['date_one'])
                 day_str = str(d['days'])
-                d_copy['date_two'] = deadline[i] + ' In' + ' '*(3 - len(day_str)) + day_str + ' d.:' + styles['normal']
+                d_copy['date_two'] = deadline[i] + ' In' + ' '*(3 - len(day_str)) \
+                    + day_str + ' d.:' + styles['normal']
                 repeat_tasks.append(d_copy)
             elif d['days'] < 0:
                 todolist[i].update(date_one=styles['late'] + const.today_date + '\n',
@@ -172,12 +178,13 @@ def update_agenda(list_, **kwargs):
             blank_dict = {
                 'date_one': styles['bright'] + d,
                 'date_two': '', 'category': '', 'text': '', 'level': '',
-                'num_tasks': '', 'tag': '', 'todostate': '', 'days': days_until_due(d)}
+                'num_tasks': '', 'tag': '', 'todostate': '', 'days': days_until_due(d)
+            }
             todolist.append(blank_dict)
 
     todolist = sorted(todolist, key=lambda d: (const.regex['ansicolors'].sub('', d['date_one']), d['days']))
 
-    for i,d in enumerate(todolist):
+    for i, d in enumerate(todolist):
         todolist[i]['date_one'] = day_names(d['date_one'])
 
     return todolist
@@ -205,8 +212,8 @@ def get_parse_string(todostates):
     date1 = r'(?P<date_one>' + const.date_str + '|)'
     tag_string = r'(?P<tag>[ \t]*:[\w:]*:)*'
     date2 = r'(?P<date_two>\n\s+[A-Z]+:\s' + const.date_str + r'(?:\n|$)|(?:\n|$))'
-    line_string = level_string + todostate_string + headerText_string + \
-            numTasks_string + date1 + tag_string + date2
+    line_string = level_string + todostate_string + headerText_string \
+            + numTasks_string + date1 + tag_string + date2
     pattern_line = re.compile(line_string, re.MULTILINE)
 
     return pattern_line
@@ -224,16 +231,16 @@ def print_header(**kwargs):
     if kwargs['colors']:
         print_delim(40)
         if kwargs['agenda']:
-            print('\t\t\t    ' + styles['checkbox'] + 'WEEK AGENDA' + \
-                    styles['normal'])
+            print('\t\t\t    ' + styles['checkbox'] + 'WEEK AGENDA' \
+                  + styles['normal'])
         elif kwargs['tags']:
-            print('\t\t    ' + styles['checkbox'] + 'Headlines with ' + \
-                    styles['tag'] + 'TAGS ' + styles['checkbox'] + 'match: ' + \
-                    styles['late'] + '%s' % kwargs['tags'])
+            print('\t\t    ' + styles['checkbox'] + 'Headlines with ' \
+                  + styles['tag'] + 'TAGS ' + styles['checkbox'] + 'match: ' \
+                  + styles['late'] + '%s' % kwargs['tags'])
         elif kwargs['categories']:
-            print('\t\t ' + styles['checkbox'] + 'Headlines with ' + \
-                    styles['tag'] + 'CATEGORY ' + styles['checkbox'] + 'match: ' + \
-                    styles['late'] + '%s' % kwargs['categories'])
+            print('\t\t ' + styles['checkbox'] + 'Headlines with ' \
+                  + styles['tag'] + 'CATEGORY ' + styles['checkbox'] + 'match: ' \
+                  + styles['late'] + '%s' % kwargs['categories'])
 
         # All dates and tags
         else:
@@ -242,17 +249,16 @@ def print_header(**kwargs):
             else:
                 state = styles['late'] + 'ALL'
             statelen = len(const.regex['ansicolors'].sub('', state))
-            print('\t\t' + styles['checkbox'] + ' '*(5 - statelen) + 'Global list of ' + \
-                styles['todo'] + 'TODO' + styles['checkbox'] + ' items of type: ' + state)
+            print('\t\t' + styles['checkbox'] + ' '*(5 - statelen) + 'Global list of ' \
+                  + styles['todo'] + 'TODO' + styles['checkbox'] + ' items of type: ' + state)
 
         print_delim(40)
 
 def print_all(list_, **kwargs):
     """Print the todo list lines, padding the columns."""
-    terminfo = os.popen('stty -a', 'r').read()
-    termwidth = re.search(r'columns \d{2,}', terminfo).group().split()[1]
+    termwidth = shutil.get_terminal_size()[0]
     tag_lens = []; state_lens = []; text_lens = []; check_lens = []; cat_lens = []
-    for i,d in enumerate(list_):
+    for i, d in enumerate(list_):
         state_lens.append(len(const.regex['ansicolors'].sub('', d['todostate'])))
         cat_lens.append(len(const.regex['ansicolors'].sub('', d['category'])))
         text_lens.append(len(const.regex['ansicolors'].sub('', d['text'])))
@@ -269,11 +275,11 @@ def print_all(list_, **kwargs):
     longest_check = max(check_lens)
     longest_tag = max(tag_lens)
     print_header(**kwargs)
-    for i,d in enumerate(list_):
+    for i, d in enumerate(list_):
         d['todostate'] = d['todostate'] + ' '*(longest_state + 2 - state_lens[i])
         d['category'] = d['category'] + ' '*(longest_cat + 1 - cat_lens[i])
-        d['num_tasks'] = d['num_tasks'] + ' '*(longest_text + 1 - text_lens[i]) + \
-            ' '*(longest_check + 1 - check_lens[i])
+        d['num_tasks'] = d['num_tasks'] + ' '*(longest_text + 1 - text_lens[i]) \
+            + ' '*(longest_check + 1 - check_lens[i])
         d['tag'] = d['tag'] + ' '*(longest_tag + 1 - tag_lens[i])
-        print(re.sub('<|>', '', d['date_one']) + '  ' + d['category'] + \
-            d['date_two'] + '  ' + d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag'])
+        print(re.sub('<|>', '', d['date_one']) + '  ' + d['category'] \
+              + d['date_two'] + '  ' + d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag'])

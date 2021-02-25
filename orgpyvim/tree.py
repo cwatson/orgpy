@@ -1,5 +1,7 @@
-from __future__ import absolute_import
-import re, os, copy
+import re
+import os
+import copy
+
 from . import const, utils
 
 __all__ = ['OrgTree', 'orgTreeFromFile']
@@ -34,10 +36,10 @@ class OrgTree:
             'base': os.path.split(orgfile)[1],
             'todostates': todostates,
             'regex_line': utils.get_parse_string(todostates),
-            'cli': kwargs
+            'cli': kwargs,
+            'tags': kwargs.get('tags'),
+            'states': kwargs.get('states'),
         }
-        if kwargs['tags']: self.properties['tags'] = kwargs['tags']
-        if kwargs['states']: self.properties['states'] = kwargs['states']
 
         f = open(orgfile, 'r')
         self.data = f.read()
@@ -58,8 +60,8 @@ class OrgTree:
     def check_properties(self):
         """Look for file-wide properties in the org file."""
         matches = const.regex['properties'].findall(self.data)
-        if len(matches) > 0:
-            for i,x in enumerate(matches):
+        if matches:
+            for i, x in enumerate(matches):
                 self.properties[x[0].lower()] = x[1]
 
     #-------------------------------------------------------
@@ -70,7 +72,7 @@ class OrgTree:
         lines = self.data.splitlines()
         level = 1
         bounds = []
-        for i,x in enumerate(lines):
+        for i, x in enumerate(lines):
             if re.search(r'^\*{' + str(level) + '} ', x):
                 bounds.append(i)
         bounds.append(len(lines))   # To get the last heading and its content
@@ -121,7 +123,8 @@ class OrgNode:
         # Parse the lines in this node, and get active tasks
         self.parse()
         self.get_active_todos()
-        if self.parsed[0]['tag'] != '': self.add_tag()
+        if self.parsed[0]['tag'] != '':
+            self.add_tag()
         if 'category' in self.properties:
             if isinstance(self.properties['category'], list):
                 new_cat = [x.title() if x.islower() else x for x in self.properties['category']]
@@ -134,7 +137,7 @@ class OrgNode:
 
         # If 'category' is a list, combine them; also, strip tags
         #TODO figure out why I added the line to strip tags...
-        for i,d in enumerate(self.active):
+        for i, d in enumerate(self.active):
             self.active[i].update(tag=d['tag'].strip())
             if isinstance(d['category'], list):
                 self.active[i].update(category=': '.join(d['category']))
@@ -142,8 +145,10 @@ class OrgNode:
         # Filter active tasks by agenda, category, or 'todo' state
         self.get_days_to_duedate()
         for p in ['agenda', 'states', 'tags', 'categories']:
-            if self.properties['cli'][p]: self.subset_by(p)
-        if self.properties['cli']['colors']: self.colorize()
+            if self.properties['cli'][p]:
+                self.subset_by(p)
+        if self.properties['cli']['colors']:
+            self.colorize()
 
     #-------------------------------------------------------
     # Class methods
@@ -152,20 +157,23 @@ class OrgNode:
         """Check if there are any node-specific 'PROPERTIES'."""
         lines = self.data.splitlines()
         bounds = []
-        for i,x in enumerate(lines):
+        for i, x in enumerate(lines):
             if re.search(':PROPERTIES:', x):
                 bounds.append(i)
                 break
-        for i,x in enumerate(lines):
+        for i, x in enumerate(lines):
             if re.search(':END:', x):
                 bounds.append(i)
                 break
-        if len(bounds) < 2: return
+        if len(bounds) < 2:
+            return None
 
+        # Drawers in orgmode are key-value pairs associated with a node or tree
         drawer = lines[bounds[0]:bounds[1]]
         drawerlines = [x.split(':')[1:] for x in drawer[1:]]
         properties = {d[0].lower(): d[1].strip() for d in drawerlines}
-        for k,v in properties.items():
+        for k, v in properties.items():
+            #TODO isn't this always True?
             if k in self.properties.keys():
                 self.properties.update({k: [self.properties[k], v]})
             else:
@@ -187,22 +195,25 @@ class OrgNode:
         """
         regex_line = self.properties['regex_line']
         matches = [x.groupdict() for x in regex_line.finditer(self.data)]
-        for i,d in enumerate(matches):
-            if not d['tag']: d['tag'] = ''
+        for i, d in enumerate(matches):
+            if not d['tag']:
+                d['tag'] = ''
             if const.regex['date'].search(d['date_two']):
                 if re.search('SCHEDULED|DEADLINE', d['date_two']):
                     d['date_one'] = d['date_two'].strip().split(': ')[1]
                     d['date_two'] = d['date_two'].strip().split(': ')[0].title() + ':'
                     if re.search('Deadline', d['date_two']):
                         d['date_two'] = ' ' + d['date_two']
-            if d['date_two'] == '\n': d['date_two'] = ' '*10
-            if '\n' not in d['date_one']: d['date_one'] = d['date_one'] + '\n'
+            if d['date_two'] == '\n':
+                d['date_two'] = ' '*10
+            if '\n' not in d['date_one']:
+                d['date_one'] = d['date_one'] + '\n'
         self.parsed = matches
 
     def get_active_todos(self):
-        """Return only the active TODO tasks."""
+        """Keep only the active TODO tasks in 'self.active'."""
         date_lines = []
-        for _,d in enumerate(self.parsed):
+        for _, d in enumerate(self.parsed):
             if d['date_one'].strip() != '':
                 if self.properties['todostates']['in_progress'].search(d['todostate']):
                     date_lines.append(d)
@@ -213,31 +224,32 @@ class OrgNode:
     def add_category(self):
         """Add a category, if present, to each line's 'dict' representation."""
         node_cat = self.properties['category']
-        for d in self.active: d.update(category=node_cat)
+        for d in self.active:
+            d.update(category=node_cat)
 
     def add_tag(self):
         """Add a tag, if present, to each line's 'dict' representation."""
         node_tag = self.parsed[0]['tag']
         for d in self.active:
-                d.update(tag=d.get('tag') + node_tag)
+            d.update(tag=d.get('tag') + node_tag)
 
     def get_days_to_duedate(self):
         """Update the active TODO dicts with the days left until the due date."""
-        for i,d in enumerate(self.active):
+        for i, d in enumerate(self.active):
             d['days'] = utils.days_until_due(d['date_one'])
 
     #---------------------------------------------------------------------------
     # Method for subsetting the active tasks based on CLI options
     #---------------------------------------------------------------------------
-    def subset_by(self, type):
+    def subset_by(self, type_):
         todos = []
         conds = {
             'agenda': "d['days'] < " + str(self.properties['cli']['num_days']),
             'states': "re.search(self.properties['cli']['states'], d['todostate'], re.IGNORECASE)",
             'tags': "re.search(self.properties['cli']['tags'], d['tag'], re.IGNORECASE)"
         }
-        if type == 'categories':
-            for i,d in enumerate(self.active):
+        if type_ == 'categories':
+            for i, d in enumerate(self.active):
                 if isinstance(d['category'], list):
                     catstring = ' '.join(d['category'])
                 else:
@@ -245,8 +257,9 @@ class OrgNode:
                 if re.search(self.properties['cli']['categories'], catstring, re.IGNORECASE):
                     todos.append(d)
         else:
-            for i,d in enumerate(self.active):
-                if eval(conds[type]): todos.append(d)
+            for i, d in enumerate(self.active):
+                if eval(conds[type_]):
+                    todos.append(d)
 
         self.active = todos
 
@@ -282,7 +295,7 @@ def orgTreeFromFile(**kwargs):
 
     # Remove repeating dates
     repeats = []
-    for i,d in enumerate(todolist):
+    for i, d in enumerate(todolist):
         d1 = const.regex['ansicolors'].sub('', todolist[i]['date_one'].strip())
         d0 = const.regex['ansicolors'].sub('', todolist[i-1]['date_one'].strip())
         if i > 0 and d1 == d0: repeats.append(i)
@@ -290,6 +303,6 @@ def orgTreeFromFile(**kwargs):
 
     # Print
     if not todolist:
-        print("No tasks!"); return
+        print("No tasks!")
     else:
         utils.print_all(todolist, **kwargs)

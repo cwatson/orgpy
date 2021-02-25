@@ -1,4 +1,7 @@
-import os, sys, argparse
+import os
+import sys
+import argparse
+
 import orgpyvim
 
 def parse_cli(argv=None):
