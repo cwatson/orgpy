@@ -2,15 +2,15 @@ import os
 import sys
 import argparse
 
-import orgpyvim
+import orgpy
 
 def parse_cli(argv=None):
     """Parse an 'org' file to list TODO's, agendas, etc."""
 
     ex = """EXAMPLES:
-    python -m orgpyvim --agenda --colors
-    python -m orgpyvim -ct personal
-    python -m orgpyvim -f ~/todo.org
+    python3 -m orgpy --agenda --colors
+    python3 -m orgpy -ct personal
+    python3 -m orgpy -f ~/todo.org
     """
     parser = argparse.ArgumentParser(description=__doc__,
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -53,7 +53,7 @@ def run():
     opts = vars(options)
 
     # Run
-    orgpyvim.orgTreeFromFile(**opts)
+    orgpy.orgTreeFromFile(**opts)
 
 if __name__ == '__main__':
     run()
