@@ -1,0 +1,28 @@
+#+TITLE: Example org file with tasks
+#+CATEGORY: home
+* Dog
+  :PROPERTIES:
+  :CATEGORY: pets
+  :END:
+** WAIT Refill medicine												:followup:
+   SCHEDULED: <2021-03-05 Fri>
+** TODO Vaccinations [1/2]											  :urgent:
+   DEADLINE: <2021-03-05 Fri>
+   - [X] DAPP
+   - [ ] Rabies
+* Bills
+  :PROPERTIES:
+  :CATEGORY: bills
+  :END:
+** DOING Pay rent
+   DEADLINE: <2021-03-01 Mon>
+** TODO Electric bill
+   DEADLINE: <2021-03-01 Mon>
+* Household
+  :PROPERTIES:
+  :CATEGORY: house
+  :END:
+** DOING Paint living room
+   DEADLINE: <2021-02-20 Sat>
+** TODO Clean stove
+   DEADLINE: <2021-02-27 Sat>

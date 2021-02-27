@@ -10,7 +10,7 @@ def get_org_files(rcfile):
     """Get a list of org files from a 'vimrc' file."""
     vimrc = open(rcfile, 'r')
     data = vimrc.read()
-    orgfiles = const.regex['orgfile'].search(data).group()
+    orgfiles = re.search(r'org_agenda_files\s=.*?\[.*?\]', data, re.DOTALL).group()
     orgfiles = orgfiles.split('[')[1].split(', ')
     orgfiles = [slugify(x) for x in orgfiles]
 
@@ -20,18 +20,35 @@ def get_todo_states(rcfile):
     """Get the 'TODO' states/keywords from a 'vimrc' file.
 
     Returns a dictionary for both the 'in progress' and 'completed' states.
+    The values are regular expression pattern objects.
+
+    For example, you may have the following in your '.vimrc':
+
+        let g:org_todo_keywords =
+            \ ['TODO(t)', 'DOING(s)', 'WAIT(w)', '|',
+            \ 'DONE(d)', 'CANCELED(c)', 'DEFERRED(f)']
+
+    In this case, the 'in progress' states are matched by 'TODO|DOING|WAIT',
+    and similarly for the 'completed' states.
     """
     vimrc = open(rcfile, 'r')
     data = vimrc.read()
-    todostates = const.regex['todostates'].search(data).group()
+    todostates = re.search(r'org_todo_keywords\s=.*?\[.*?\]', data, re.DOTALL)
 
-    todostates = re.sub(r'\([a-z]\)', '', todostates)
-    todostates = [x.strip(', ') for x in slugify(todostates.split('[')[1]).split('|')]
-    todostates = [re.compile(r'' + x.replace(', ', r'|') + r'') for x in todostates]
-    todostates = {
-        'in_progress': todostates[0],
-        'completed': todostates[1]
-    }
+    if todostates is None:
+        todostates = {
+            'in_progress': re.compile('TODO'),
+            'completed': re.compile('DONE')
+        }
+    else:
+        todostates = todostates.group()
+        todostates = re.sub(r'\([a-z]\)', '', todostates)
+        todostates = [x.strip(', ') for x in slugify(todostates.split('[')[1]).split('|')]
+        todostates = [re.compile(r'' + x.replace(', ', r'|') + r'') for x in todostates]
+        todostates = {
+            'in_progress': todostates[0],
+            'completed': todostates[1]
+        }
 
     return todostates
 
@@ -39,7 +56,7 @@ def get_todo_states(rcfile):
 # Date-related functions
 #-------------------------------------------------------------------------------
 def days_until_due(duedate):
-    """Calculate the number of days left until a task's due date.
+    """Calculate the (int) number of days left until a task's due date.
 
     Args:
         duedate (str): format should be '<%Y-%m-%d %a>' (including brackets)
@@ -55,13 +72,14 @@ def day_names(str_):
         str_ (str): the string should contain '<%Y-%m-%d %a>' (including
             brackets). It also works if ANSI sequences are present.
 
-    Output:
+    Returns:
         A string with the date portion replaced by '%A %d %b', where '%A' is
-        the full day name, and '%b' is the abbreviated month name.
+        the full day name, and '%b' is the abbreviated month name. Spaces are
+        added for padding the output.
     """
     match = const.regex['date'].search(str_).group()
-    repl = datetime.strptime(match, '<%Y-%m-%d %a>').strftime('%A %d %b')
-    repl = repl.split()[0] + ' '*(10 - len(repl.split()[0])) + ' '.join(repl.split()[1:4])
+    repl = datetime.strptime(match, '<%Y-%m-%d %a>').strftime('%A %d %b').split()
+    repl = repl[0].ljust(10) + ' '.join(repl[1:])
     tmp = re.sub(match, repl, str_)
     return tmp
 
@@ -157,18 +175,20 @@ def update_agenda(list_, **kwargs):
         else:
             deadline.append('')
 
+    # Pad output if there are late tasks or larger 'num_days' is requested
+    max_days = max([len(str(x['days'])) for x in todolist])
     for i, d in enumerate(todolist):
         if re.search('Deadline', d['date_two']):
             if 0 < d['days'] < num_days:
+                day_str = str(d['days']).rjust(max_days+1)
                 d_copy = dict(d)
                 d_copy['date_one'] = const.regex['date'].sub(const.today_date, d['date_one'])
-                day_str = str(d['days'])
-                d_copy['date_two'] = deadline[i] + ' In' + ' '*(3 - len(day_str)) \
-                    + day_str + ' d.:' + styles['normal']
+                d_copy['date_two'] = deadline[i] + ' In' + day_str + ' d.:' + styles['normal']
                 repeat_tasks.append(d_copy)
             elif d['days'] < 0:
+                day_str = str(d['days']).rjust(max_days)
                 todolist[i].update(date_one=styles['late'] + const.today_date + '\n',
-                        date_two=deadline[i] + ' In ' + str(d['days']) + ' d.:' + styles['bright'])
+                                   date_two=deadline[i] + ' In ' + day_str + ' d.:' + styles['bright'])
 
     todolist = todolist + repeat_tasks
 
@@ -184,6 +204,7 @@ def update_agenda(list_, **kwargs):
 
     todolist = sorted(todolist, key=lambda d: (const.regex['ansicolors'].sub('', d['date_one']), d['days']))
 
+    # Change '<%Y-%m-%d %a>' to '%A %d %b' for all entries
     for i, d in enumerate(todolist):
         todolist[i]['date_one'] = day_names(d['date_one'])
 
@@ -195,7 +216,21 @@ def update_agenda(list_, **kwargs):
 def get_parse_string(todostates):
     """Calculate the correct regex pattern for parsing an entire org line.
 
-    Depends on the set of TODO 'states'/keywords present in the files.
+    Depends on the set of TODO "states"/keywords present in the files.
+
+    Returns:
+        A "re" pattern object (compiled) which can be matched into a dictionary
+        with keys:
+        - level     (the number of leading asterisks, e.g. "***")
+        - todostate (one of "TODO", "DONE", etc.)
+        - text      (the text of the task)
+        - num_tasks (a box for tasks with multiple sub-tasks, e.g. "[2/5]")
+        - date_one  (the date string, e.g. "Saturday  27 Feb";
+                     can be blank if multiple tasks are due for a given date)
+        - tag       (tags surrounded by ":", if present; e.g. ":work:urgent:")
+        - date_two  (either the number of days until duedate, e.g. "In 5 d.:",
+                     or "Deadline:" or "Scheduled:" with the date in format
+                     "<%Y-%m-%d %a>")
     """
     # TODO The following gets *all* content between 2 consecutive headings/sets of asterisks
     # Should use this, in some way, to e.g. look for the date on line 2
@@ -231,16 +266,24 @@ def print_header(**kwargs):
     if kwargs['colors']:
         print_delim(40)
         if kwargs['agenda']:
-            print('\t\t\t    ' + styles['checkbox'] + 'WEEK AGENDA' \
-                  + styles['normal'])
+            if kwargs['num_days'] == 7:
+                print('\t\t\t      {}WEEK AGENDA{}'.format(styles['checkbox'], styles['normal']))
+            else:
+                print('\t\t\t     {}{} DAY AGENDA{}'.format(styles['checkbox'], kwargs['num_days'], styles['normal']))
         elif kwargs['tags']:
-            print('\t\t    ' + styles['checkbox'] + 'Headlines with ' \
-                  + styles['tag'] + 'TAGS ' + styles['checkbox'] + 'match: ' \
-                  + styles['late'] + '%s' % kwargs['tags'])
+            print('\t\t    {}Headlines with {}TAGS {}match: {}{}'.format(
+                styles['checkbox'],
+                styles['tag'],
+                styles['checkbox'],
+                styles['late'],
+                kwargs['tags']))
         elif kwargs['categories']:
-            print('\t\t ' + styles['checkbox'] + 'Headlines with ' \
-                  + styles['tag'] + 'CATEGORY ' + styles['checkbox'] + 'match: ' \
-                  + styles['late'] + '%s' % kwargs['categories'])
+            print('\t\t {}Headlines with {}CATEGORY {}match: {}{}'.format(
+                styles['checkbox'],
+                styles['tag'],
+                styles['checkbox'],
+                styles['late'],
+                kwargs['categories']))
 
         # All dates and tags
         else:
@@ -256,30 +299,40 @@ def print_header(**kwargs):
 
 def print_all(list_, **kwargs):
     """Print the todo list lines, padding the columns."""
+    #TODO can I use the terminal width in some way? Maybe if truncation is needed
     termwidth = shutil.get_terminal_size()[0]
-    tag_lens = []; state_lens = []; text_lens = []; check_lens = []; cat_lens = []
-    for i, d in enumerate(list_):
+    print_header(**kwargs)
+
+    # Most of the rest of the function is an ugly hack to make sure everything
+    # is aligned whether ANSI color sequences are present or not
+    tag_lens = []; state_lens = []; text_lens = []; check_lens = []; cat_lens = []; date2_lens = []
+    for _, d in enumerate(list_):
         state_lens.append(len(const.regex['ansicolors'].sub('', d['todostate'])))
         cat_lens.append(len(const.regex['ansicolors'].sub('', d['category'])))
         text_lens.append(len(const.regex['ansicolors'].sub('', d['text'])))
         check_lens.append(len(const.regex['ansicolors'].sub('', d['num_tasks'])))
         tag_lens.append(len(const.regex['ansicolors'].sub('', d['tag'])))
+        date2_lens.append(len(const.regex['ansicolors'].sub('', d['date_two'])))
 
     longest_state = max(state_lens)
     if kwargs['agenda']:
-        maxdatelen = 18     # Date string includes full day name
+        maxdatelen = 16     # Date string includes full day name
     else:
         maxdatelen = 14
     longest_cat = max(maxdatelen, max(cat_lens))
     longest_text = max(text_lens)
     longest_check = max(check_lens)
     longest_tag = max(tag_lens)
-    print_header(**kwargs)
+    longest_date = max(date2_lens)
+
     for i, d in enumerate(list_):
-        d['todostate'] = d['todostate'] + ' '*(longest_state + 2 - state_lens[i])
+        d['date_one'] = re.sub('<|>', '', d['date_one'])
         d['category'] = d['category'] + ' '*(longest_cat + 1 - cat_lens[i])
+        d['date_two'] = ' '*(longest_date + 1 - date2_lens[i]) + d['date_two']
+        d['todostate'] = d['todostate'] + ' '*(longest_state + 2 - state_lens[i])
         d['num_tasks'] = d['num_tasks'] + ' '*(longest_text + 1 - text_lens[i]) \
             + ' '*(longest_check + 1 - check_lens[i])
         d['tag'] = d['tag'] + ' '*(longest_tag + 1 - tag_lens[i])
-        print(re.sub('<|>', '', d['date_one']) + '  ' + d['category'] \
-              + d['date_two'] + '  ' + d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag'])
+        #print(re.sub('<|>', '', d['date_one']) + '  ' + d['category'] \
+        #      + d['date_two'] + '  ' + d['todostate'] + ' ' + d['text'] + d['num_tasks'] + d['tag'])
+        print('{date_one} {category}{date_two} {todostate}{text}{num_tasks}{tag}'.format(**d))

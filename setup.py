@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'orgpy',
-    version = '0.7.0',
+    version = '0.8.0',
     author = 'Christopher G. Watson',
     author_email = 'cwa135@alum.mit.edu',
     description = 'Python package to get important information from org-mode files',
@@ -19,6 +19,6 @@ setup(
     license = 'Apache 2.0',
     packages = find_packages(),
     keywords = ['orgmode'],
-    install_requires = ['setuptools', 'argparse', 'colorama', 'copy', 'datetime', 'os', 're', 'shutil', 'sys'],
+    install_requires = ['setuptools', 'argparse', 'colorama', 'copy', 'datetime', 'io', 'os', 're', 'shutil', 'sys'],
     python_requires = '>=3.6',
 )

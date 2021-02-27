@@ -1,3 +1,10 @@
+* v0.8.0 -- <2021-02-27 Sat>
+** Fix padding issue when the number of days until duedate has multiple digits
+** Use the =string.format= method when printing lines
+** Allow for default *todostates* (which are *TODO* and *DONE*)
+** Make some minor style changes
+** Add to documentation in places
+** Expand the =README=, and add an example =org= file and screenshot
 * v0.7.0 -- <2021-02-24 Wed>
 ** Make changes to work with *Python 3.6*
 * v0.6.0 -- <2019-07-06 Sat>

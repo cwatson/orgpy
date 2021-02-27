@@ -61,7 +61,7 @@ class OrgTree:
         """Look for file-wide properties in the org file."""
         matches = const.regex['properties'].findall(self.data)
         if matches:
-            for i, x in enumerate(matches):
+            for _, x in enumerate(matches):
                 self.properties[x[0].lower()] = x[1]
 
     #-------------------------------------------------------
@@ -195,7 +195,7 @@ class OrgNode:
         """
         regex_line = self.properties['regex_line']
         matches = [x.groupdict() for x in regex_line.finditer(self.data)]
-        for i, d in enumerate(matches):
+        for _, d in enumerate(matches):
             if not d['tag']:
                 d['tag'] = ''
             if const.regex['date'].search(d['date_two']):
@@ -235,7 +235,7 @@ class OrgNode:
 
     def get_days_to_duedate(self):
         """Update the active TODO dicts with the days left until the due date."""
-        for i, d in enumerate(self.active):
+        for _, d in enumerate(self.active):
             d['days'] = utils.days_until_due(d['date_one'])
 
     #---------------------------------------------------------------------------
@@ -249,7 +249,7 @@ class OrgNode:
             'tags': "re.search(self.properties['cli']['tags'], d['tag'], re.IGNORECASE)"
         }
         if type_ == 'categories':
-            for i, d in enumerate(self.active):
+            for _, d in enumerate(self.active):
                 if isinstance(d['category'], list):
                     catstring = ' '.join(d['category'])
                 else:
@@ -257,7 +257,7 @@ class OrgNode:
                 if re.search(self.properties['cli']['categories'], catstring, re.IGNORECASE):
                     todos.append(d)
         else:
-            for i, d in enumerate(self.active):
+            for _, d in enumerate(self.active):
                 if eval(conds[type_]):
                     todos.append(d)
 
@@ -298,8 +298,10 @@ def orgTreeFromFile(**kwargs):
     for i, d in enumerate(todolist):
         d1 = const.regex['ansicolors'].sub('', todolist[i]['date_one'].strip())
         d0 = const.regex['ansicolors'].sub('', todolist[i-1]['date_one'].strip())
-        if i > 0 and d1 == d0: repeats.append(i)
-    for i in repeats: todolist[i]['date_one'] = ''
+        if i > 0 and d1 == d0:
+            repeats.append(i)
+    for i in repeats:
+        todolist[i]['date_one'] = ''
 
     # Print
     if not todolist:

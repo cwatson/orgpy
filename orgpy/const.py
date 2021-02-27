@@ -48,8 +48,6 @@ inline = {
 }
 date_str = r'[\<\[]' + r'\d{4}-\d{2}-\d{2}' + r' [a-zA-Z]{3}' + r'[\>\]]'
 regex = {
-    'orgfile': re.compile(r'org_agenda_files\s=.*?\[.*?\]', re.DOTALL),
-    'todostates': re.compile(r'org_todo_keywords\s=.*?\[.*?\]', re.DOTALL),
     'url': re.compile('\[\[.*\]\]'),
     'date': re.compile(date_str),
     'properties': re.compile(r'#\+([A-Z]*): (.*)\n'),
