@@ -41,8 +41,8 @@ class OrgTree:
             'states': kwargs.get('states'),
         }
 
-        f = open(orgfile, 'r')
-        self.data = f.read()
+        with open(orgfile, 'r') as f:
+            self.data = f.read()
         self.check_properties()
 
         # Parse the file for child nodes, and combine the child lists

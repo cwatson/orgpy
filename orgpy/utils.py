@@ -8,8 +8,8 @@ from . import const
 
 def get_org_files(rcfile):
     """Get a list of org files from a 'vimrc' file."""
-    vimrc = open(rcfile, 'r')
-    data = vimrc.read()
+    with open(rcfile, 'r') as vimrc:
+        data = vimrc.read()
     orgfiles = re.search(r'org_agenda_files\s=.*?\[.*?\]', data, re.DOTALL).group()
     orgfiles = orgfiles.split('[')[1].split(', ')
     orgfiles = [slugify(x) for x in orgfiles]
@@ -31,8 +31,8 @@ def get_todo_states(rcfile):
     In this case, the 'in progress' states are matched by 'TODO|DOING|WAIT',
     and similarly for the 'completed' states.
     """
-    vimrc = open(rcfile, 'r')
-    data = vimrc.read()
+    with open(rcfile, 'r') as vimrc:
+        data = vimrc.read()
     todostates = re.search(r'org_todo_keywords\s=.*?\[.*?\]', data, re.DOTALL)
 
     if todostates is None:

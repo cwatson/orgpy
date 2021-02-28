@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = 'orgpy',
-    version = '0.8.0',
+    version = '0.9.0',
     author = 'Christopher G. Watson',
     author_email = 'cwa135@alum.mit.edu',
     description = 'Python package to get important information from org-mode files',
