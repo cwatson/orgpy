@@ -13,7 +13,7 @@ class OrgTree:
 
     If there are multiple level-one headings---with a single asterisk---they
     will be stored in the 'children' attribute. The tasks from the children
-    will be merged into the 'all' attribute.
+    will be merged into the 'active' attribute.
 
     Args:
         orgfile (str): full pathname of the org file
@@ -22,7 +22,7 @@ class OrgTree:
         **kwargs: dictionary containing the command-line arguments
 
     Attributes:
-        all (list): dicts of all active (incomplete) tasks (from all children)
+        active (list): dicts of all active (incomplete) tasks (from all children)
         properties (dict): contains file-wide variables and the CLI options
         children (list): list of 'OrgNode' objects
         data (str): string containing all text in the org file
@@ -103,13 +103,9 @@ class OrgTree:
 
     def merge_children(self):
         """Join the active tasks from all children."""
-        self.all = []
-        if self.properties['cli']['colors']:
-            for ch in self.children:
-                self.all += ch.colored
-        else:
-            for ch in self.children:
-                self.all += ch.active
+        self.active = []
+        for ch in self.children:
+            self.active += ch.active
 
 #===============================================================================
 # Class definition for an org "node", a single hierarchy (starting at any level)
@@ -167,8 +163,6 @@ class OrgNode:
         for p in ['agenda', 'states', 'tags', 'categories']:
             if self.properties['cli'][p]:
                 self.subset_by(p)
-        if self.properties['cli']['colors']:
-            self.colorize()
 
     #-------------------------------------------------------
     # Class methods
@@ -283,13 +277,6 @@ class OrgNode:
 
         self.active = todos
 
-    # Apply styles to each active task
-    def colorize(self):
-        """Colorize dates, tags, TODO states, and inline text."""
-        self.colored = []
-        for d in self.active:
-            self.colored.append(utils.colorize(d))
-
 #-----------------------------------------------------------
 # Loop through all 'org' files listed in 'vimrc'
 #-----------------------------------------------------------
@@ -305,7 +292,15 @@ def orgTreeFromFile(**kwargs):
     todolist = []
     for f in orgfiles:
         org = OrgTree(f, todostates, **kwargs)
-        todolist += org.all
+        todolist += org.active
+
+    # Colorize all tasks
+    if kwargs['colors']:
+        colored = []
+        for x in todolist:
+            colored.append(utils.colorize(x))
+
+        todolist = colored
 
     # Add dates even if there are no tasks, and add future deadlines for "today"
     if kwargs['agenda']:
