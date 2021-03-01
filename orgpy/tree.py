@@ -37,8 +37,6 @@ class OrgTree:
             'todostates': todostates,
             'regex_line': utils.get_parse_string(todostates),
             'cli': kwargs,
-            'tags': kwargs.get('tags'),
-            'states': kwargs.get('states'),
         }
 
         with open(orgfile, 'r') as f:
@@ -58,7 +56,21 @@ class OrgTree:
         return(len(self.children))
 
     def check_properties(self):
-        """Look for file-wide properties in the org file."""
+        """Look for file-wide properties in the org file.
+
+        Returns:
+            A list of tuples with the property name as its first element
+            and the value as its second.
+
+        These are lines beginning with "#+", followed by a word in all
+        uppercase and a colon. The property value ends the line. For
+        example, there might be 2 lines
+            #+TITLE: My org file
+            #+CATEGORY: personal
+
+        which would return
+            [('TITLE', 'My org file'), ('CATEGORY', 'personal')]
+        """
         matches = const.regex['properties'].findall(self.data)
         if matches:
             for _, x in enumerate(matches):
@@ -68,7 +80,12 @@ class OrgTree:
     # The main class method to parse child nodes
     #-------------------------------------------------------
     def parse(self):
-        """Parse org file into a tree or trees if there are multiple roots."""
+        """Parse org file into a tree or trees if there are multiple roots.
+
+        The 'parse' method searches for top-level nodes in the file (i.e.,
+        those beginning with a single asterisk and space) and creates a list
+        of "OrgNode" objects for each node.
+        """
         lines = self.data.splitlines()
         level = 1
         bounds = []
@@ -123,10 +140,14 @@ class OrgNode:
         # Parse the lines in this node, and get active tasks
         self.parse()
         self.get_active_todos()
+
+        #TODO This would apply a tag to all sub-nodes; is this appropriate?
         if self.parsed[0]['tag'] != '':
             self.add_tag()
+
         if 'category' in self.properties:
             if isinstance(self.properties['category'], list):
+                # Preserve categories that are all uppercase
                 new_cat = [x.title() if x.islower() else x for x in self.properties['category']]
                 self.properties.update(category=new_cat)
             else:
@@ -135,8 +156,7 @@ class OrgNode:
 
             self.add_category()
 
-        # If 'category' is a list, combine them; also, strip tags
-        #TODO figure out why I added the line to strip tags...
+        # If 'category' is a list, combine them; also, strip whitespace from tags
         for i, d in enumerate(self.active):
             self.active[i].update(tag=d['tag'].strip())
             if isinstance(d['category'], list):
