@@ -294,19 +294,16 @@ def orgTreeFromFile(**kwargs):
         org = OrgTree(f, todostates, **kwargs)
         todolist += org.active
 
-    # Colorize all tasks
-    if kwargs['colors']:
-        colored = []
-        for x in todolist:
-            colored.append(utils.colorize(x))
-
-        todolist = colored
-
     # Add dates even if there are no tasks, and add future deadlines for "today"
     if kwargs['agenda']:
         todolist = utils.update_agenda(todolist, **kwargs)
     else:
         todolist = sorted(todolist, key=lambda d: d['days'])
+
+    # Colorize all tasks
+    if kwargs['colors']:
+        for d in todolist:
+            utils.colorize(d, **kwargs)
 
     # Remove repeating dates
     repeats = []

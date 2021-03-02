@@ -5,9 +5,9 @@
   :CATEGORY: pets
   :END:
 ** WAIT Refill medicine												:followup:
-   SCHEDULED: <2021-03-05 Fri>
+   SCHEDULED: <2021-03-08 Mon>
 ** TODO Vaccinations [1/2]											  :urgent:
-   DEADLINE: <2021-03-05 Fri>
+   DEADLINE: <2021-03-08 Mon>
    - [X] DAPP
    - [ ] Rabies
 * Bills
@@ -15,14 +15,14 @@
   :CATEGORY: bills
   :END:
 ** DOING Pay rent
-   DEADLINE: <2021-03-01 Mon>
+   DEADLINE: <2021-03-04 Thu>
 ** TODO Electric bill
-   DEADLINE: <2021-03-01 Mon>
+   DEADLINE: <2021-03-04 Thu>
 * Household
   :PROPERTIES:
   :CATEGORY: house
   :END:
 ** DOING Paint living room
-   DEADLINE: <2021-02-20 Sat>
+   DEADLINE: <2021-02-23 Tue>
 ** TODO Clean stove
-   DEADLINE: <2021-02-27 Sat>
+   DEADLINE: <2021-03-02 Tue>

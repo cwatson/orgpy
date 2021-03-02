@@ -10,17 +10,22 @@ today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 today_date = '<' + today.strftime('%Y-%m-%d %a') + '>'
 
 styles = {
+    # Basic styles
     'normal': Fore.WHITE + Back.BLACK + Style.NORMAL,
     'bright': Fore.WHITE + Back.BLACK + Style.BRIGHT,
+    # todo-state styles
     'todo': Fore.WHITE + Back.RED,
     'doing': Fore.WHITE + Back.BLUE,
     'wait': Fore.BLACK + Back.YELLOW,
+    # "date_two" styles
     'deadline': Fore.RED + Back.BLACK + Style.BRIGHT,
     'deadline_two': Fore.YELLOW + Back.BLACK + Style.BRIGHT,
     'scheduled': Fore.CYAN + Back.BLACK + Style.BRIGHT,
+    # "date_one" styles (and "category" for overdue tasks)
     'late': Fore.RED + Back.BLACK + Style.BRIGHT,
     'today': Fore.GREEN + Back.BLACK + Style.BRIGHT,
     'later': Fore.BLUE + Back.BLACK + Style.BRIGHT,
+    # Other styles
     'checkbox': Fore.MAGENTA + Back.BLACK + Style.BRIGHT,
     'code': Fore.GREEN + Style.BRIGHT,
     'category': Fore.MAGENTA + Style.BRIGHT,
